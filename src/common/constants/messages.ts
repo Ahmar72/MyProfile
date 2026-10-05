@@ -1,0 +1,18 @@
+export const MESSAGES = {
+    USER_NOT_FOUND: 'User not found',
+    USER_CREATED: 'User created successfully',
+    USER_FETCHED: 'User fetched successfully',
+    USERS_FETCHED: 'Users fetched successfully',
+    USER_UPDATED: 'User updated successfully',
+    USER_DELETED: 'User deleted successfully',
+    INVALID_CREDENTIALS: 'Invalid credentials',
+    EMAIL_IN_USE: 'Email already in use',
+    EMAIL_NOT_VERIFIED: 'Please verify your email first',
+    OTP_SENT: 'OTP sent to your email',
+    OTP_VERIFIED: 'OTP verified successfully',
+    OTP_INVALID: 'Invalid OTP',
+    OTP_EXPIRED: 'OTP expired',
+    PASSWORD_RESET: 'Password reset successfully',
+    LOGIN_SUCCESS: 'Login successful',
+    SIGNUP_SUCCESS: 'OTP sent to your email. Please verify to continue.',
+} as const;
