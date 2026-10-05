@@ -62,7 +62,8 @@ export class UserService {
     }
 
     async createUser(dto: CreateUserDto) {
-        const existing = await this.userModel.findOne({ email: dto.email });
+        const email = this.normalizeEmail(dto.email);
+        const existing = await this.userModel.findOne({ email });
         if (existing) throw new ConflictException(MESSAGES.EMAIL_IN_USE);
 
         const hashedPassword = dto.password
@@ -71,7 +72,7 @@ export class UserService {
 
         const user = await this.userModel.create({
             name: dto.name,
-            email: dto.email,
+            email,
             phone: dto.phone,
             role: dto.role ?? 'Viewer',
             profession: dto.profession ?? 'Employee',
@@ -105,6 +106,10 @@ export class UserService {
         this.ensureValidId(id);
         const updateData: Partial<User> = { ...dto };
 
+        if (dto.email) {
+            updateData.email = this.normalizeEmail(dto.email);
+        }
+
         if (dto.password) {
             updateData.password = await bcrypt.hash(dto.password, 10);
         }
@@ -127,5 +132,9 @@ export class UserService {
         if (!isValidObjectId(id)) {
             throw new BadRequestException('Invalid user id');
         }
+    }
+
+    private normalizeEmail(email: string) {
+        return email.trim().toLowerCase();
     }
 }
