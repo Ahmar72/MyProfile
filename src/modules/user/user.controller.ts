@@ -9,7 +9,14 @@ import {
     Query,
     UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+    ApiBearerAuth,
+    ApiCreatedResponse,
+    ApiOkResponse,
+    ApiParam,
+    ApiQuery,
+    ApiTags,
+} from '@nestjs/swagger';
 import { UserService } from './user.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -26,6 +33,7 @@ export class UserController {
     constructor(private readonly userService: UserService) {}
 
     @Get('me')
+    @ApiOkResponse({ description: 'Current user returned' })
     async getMe(@CurrentUser() user: JwtPayload) {
         const payload = await this.userService.getMe(user.userId);
         return { message: MESSAGES.USER_FETCHED, payload };
@@ -38,6 +46,7 @@ export class UserController {
     @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], example: 'desc' })
     @ApiQuery({ name: 'search', required: false, example: 'jane' })
     @ApiQuery({ name: 'verified', required: false, enum: ['true', 'false'], example: 'true' })
+    @ApiOkResponse({ description: 'Paginated users returned' })
     async getUsers(
         @Query('page') page?: string,
         @Query('limit') limit?: string,
@@ -65,6 +74,7 @@ export class UserController {
     }
 
     @Post()
+    @ApiCreatedResponse({ description: 'User created successfully' })
     async createUser(@Body() dto: CreateUserDto) {
         const payload = await this.userService.createUser(dto);
         return { message: MESSAGES.USER_CREATED, payload };
@@ -72,6 +82,7 @@ export class UserController {
 
     @Get(':id')
     @ApiParam({ name: 'id', example: '65f1c2e8a5d1f0a123456789' })
+    @ApiOkResponse({ description: 'User returned' })
     async getUserById(@Param('id') id: string) {
         const payload = await this.userService.getUserById(id);
         return { message: MESSAGES.USER_FETCHED, payload };
@@ -79,6 +90,7 @@ export class UserController {
 
     @Put(':id')
     @ApiParam({ name: 'id', example: '65f1c2e8a5d1f0a123456789' })
+    @ApiOkResponse({ description: 'User updated successfully' })
     async updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
         const payload = await this.userService.updateUser(id, dto);
         return { message: MESSAGES.USER_UPDATED, payload };
@@ -86,6 +98,7 @@ export class UserController {
 
     @Delete(':id')
     @ApiParam({ name: 'id', example: '65f1c2e8a5d1f0a123456789' })
+    @ApiOkResponse({ description: 'User deleted successfully' })
     async deleteUser(@Param('id') id: string) {
         const payload = await this.userService.deleteUser(id);
         return { message: MESSAGES.USER_DELETED, payload };
