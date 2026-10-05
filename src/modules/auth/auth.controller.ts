@@ -17,11 +17,9 @@ import { ChangePasswordDto } from './dto/change-password.dto.js';
 @Controller('auth')
 export class AuthController {
     @Post('refresh-token')
-async refreshToken(@Body() dto: RefreshTokenDto) {
-    return (this.authService as unknown as {
-        refreshToken(refreshToken: string): Promise<unknown>;
-    }).refreshToken(dto.refreshToken);
-}
+    async refreshToken(@Body() dto: RefreshTokenDto) {
+        return this.authService.refreshToken(dto.refreshToken);
+    }
     constructor(private readonly authService: AuthService) {}
 
     @Post('signup')
@@ -89,10 +87,11 @@ async refreshToken(@Body() dto: RefreshTokenDto) {
     }
 
     @Post('logout')
-@UseGuards(JwtAuthGuard)
-async logout(@CurrentUser() user: JwtPayload) {
-    const result = await this.authService.logout(user.userId);
-    return { message: result.message, payload: {} };
-}
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    async logout(@CurrentUser() user: JwtPayload) {
+        const result = await this.authService.logout(user.userId);
+        return { message: result.message, payload: {} };
+    }
 
 }
