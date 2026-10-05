@@ -1,10 +1,11 @@
 import {
+    BadRequestException,
     ConflictException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -87,18 +88,21 @@ export class UserService {
     }
 
     async getUserById(id: string) {
+        this.ensureValidId(id);
         const user = await this.userModel.findById(id);
         if (!user) throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
         return user.toJSON();
     }
 
     async getMe(userId: string) {
+        this.ensureValidId(userId);
         const user = await this.userModel.findById(userId);
         if (!user) throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
         return user.toJSON();
     }
 
     async updateUser(id: string, dto: UpdateUserDto) {
+        this.ensureValidId(id);
         const updateData: Partial<User> = { ...dto };
 
         if (dto.password) {
@@ -113,8 +117,15 @@ export class UserService {
     }
 
     async deleteUser(id: string) {
+        this.ensureValidId(id);
         const user = await this.userModel.findByIdAndDelete(id);
         if (!user) throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
         return user.toJSON();
+    }
+
+    private ensureValidId(id: string) {
+        if (!isValidObjectId(id)) {
+            throw new BadRequestException('Invalid user id');
+        }
     }
 }
