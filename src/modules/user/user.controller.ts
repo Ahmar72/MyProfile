@@ -20,12 +20,12 @@ import { MESSAGES } from '../../common/constants/messages.js';
 
 @ApiTags('Users')
 @Controller('users')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class UserController {
     constructor(private readonly userService: UserService) {}
 
     @Get('me')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
     async getMe(@CurrentUser() user: JwtPayload) {
         const payload = await this.userService.getMe(user.userId);
         return { message: MESSAGES.USER_FETCHED, payload };
