@@ -7,12 +7,12 @@ import {
     UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { HydratedDocument, Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 
-import { User, UserDocument } from '../user/schemas/user.schema.js';
+import { User } from '../user/schemas/user.schema.js';
 import { EmailService } from '../../email/email.service.js';
 import { SignupDto } from './dto/signup.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -22,7 +22,7 @@ import { MESSAGES } from '../../common/constants/messages.js';
 @Injectable()
 export class AuthService {
     constructor(
-        @InjectModel(User.name) private userModel: Model<UserDocument>,
+        @InjectModel(User.name) private userModel: Model<User>,
         private jwt: JwtService,
         private config: ConfigService,
         private emailService: EmailService,
@@ -214,36 +214,6 @@ export class AuthService {
     async checkEmail(email: string) {
         const user = await this.userModel.findOne({
             email: email.trim().toLowerCase(),
-            // ============ REFRESH TOKEN ============
-async refreshToken(refreshToken: string) {
-    try {
-        // Verify the refresh token using the refresh secret
-        const payload = await this.jwt.verifyAsync(refreshToken, {
-            secret: this.config.get('jwt.refreshSecret'),
-        });
-
-        // Find the user to ensure they still exist
-        const user = await this.userModel.findById(payload.userId);
-        if (!user) {
-            throw new UnauthorizedException('User not found');
-        }
-
-        // Ensure user is still verified
-        if (!user.isVerified) {
-            throw new ForbiddenException(MESSAGES.EMAIL_NOT_VERIFIED);
-        }
-
-        // Generate fresh tokens
-        const tokens = await this.generateTokens(user);
-
-        return {
-            message: 'Tokens refreshed successfully',
-            payload: tokens,
-        };
-    } catch (error) {
-        throw new UnauthorizedException('Invalid or expired refresh token');
-    }
-}
         });
 
         if (!user) {
@@ -257,20 +227,74 @@ async refreshToken(refreshToken: string) {
         };
     }
 
-    // ============ PRIVATE: GENERATE TOKENS ============
-    private async generateTokens(user: UserDocument) {
-        const payload = { userId: user._id.toString(), email: user.email };
+    // ============ REFRESH TOKEN ============
+    async refreshToken(refreshToken: string) {
+        try {
+            const payload = await this.jwt.verifyAsync(refreshToken, {
+                secret: this.config.get('jwt.refreshSecret'),
+            });
 
-        const accessToken = await this.jwt.signAsync(payload, {
-            secret: this.config.get('jwt.secret'),
-            expiresIn: this.config.get('jwt.accessExpires'),
-        });
+            const userWithToken = await this.userModel
+                .findById(payload.userId)
+                .select('+refreshToken');
 
-        const refreshToken = await this.jwt.signAsync(payload, {
-            secret: this.config.get('jwt.refreshSecret'),
-            expiresIn: this.config.get('jwt.refreshExpires'),
-        });
+            if (!userWithToken || userWithToken.refreshToken !== refreshToken) {
+                throw new UnauthorizedException('Refresh token has been revoked');
+            }
 
-        return { accessToken, refreshToken };
+            const user = await this.userModel.findById(payload.userId);
+            if (!user) {
+                throw new UnauthorizedException('User not found');
+            }
+
+            if (!user.isVerified) {
+                throw new ForbiddenException(MESSAGES.EMAIL_NOT_VERIFIED);
+            }
+
+            const tokens = await this.generateTokens(user);
+
+            return {
+                message: 'Tokens refreshed successfully',
+                payload: tokens,
+            };
+        } catch (error) {
+            throw new UnauthorizedException('Invalid or expired refresh token');
+        }
     }
+
+
+    // ============ LOGOUT ============
+async logout(userId: string) {
+    const user = await this.userModel.findById(userId).select('+refreshToken');
+    if (!user) {
+        throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+    }
+
+    // Clear the refresh token
+    user.refreshToken = undefined;
+    await user.save();
+
+    return { message: 'Logged out successfully' };
+}
+
+    // ============ PRIVATE: GENERATE TOKENS ============
+    private async generateTokens(user: HydratedDocument<User>) {
+    const payload = { userId: user._id.toString(), email: user.email };
+
+    const accessToken = await this.jwt.signAsync(payload, {
+        secret: this.config.get('jwt.secret'),
+        expiresIn: this.config.get('jwt.accessExpires'),
+    });
+
+    const refreshToken = await this.jwt.signAsync(payload, {
+        secret: this.config.get('jwt.refreshSecret'),
+        expiresIn: this.config.get('jwt.refreshExpires'),
+    });
+
+    // Save the refresh token for logout support
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    return { accessToken, refreshToken };
+}
 }
