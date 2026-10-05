@@ -1,10 +1,11 @@
 import {
+    BadRequestException,
     ConflictException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -19,16 +20,34 @@ export class UserService {
         private emailService: EmailService,
     ) {}
 
-    async getUsers(page = 1, limit = 10, sortBy = 'createdAt', sortOrder: 'asc' | 'desc' = 'desc') {
+    async getUsers(
+        page = 1,
+        limit = 10,
+        sortBy = 'createdAt',
+        sortOrder: 'asc' | 'desc' = 'desc',
+        search?: string,
+        verified?: boolean,
+    ) {
         const skip = (page - 1) * limit;
         const sortField = sortBy === 'name' || sortBy === 'email' ? sortBy : 'createdAt';
         const sort: Record<string, 1 | -1> = {
             [sortField]: sortOrder === 'asc' ? 1 : -1,
         };
+        const searchTerm = search?.trim();
+        const filter: Record<string, unknown> = {};
+        if (searchTerm) {
+            filter.$or = [
+                { name: { $regex: searchTerm, $options: 'i' } },
+                { email: { $regex: searchTerm, $options: 'i' } },
+            ];
+        }
+        if (verified !== undefined) {
+            filter.isVerified = verified;
+        }
 
         const [users, totalUsers] = await Promise.all([
-            this.userModel.find().sort(sort).skip(skip).limit(limit).exec(),
-            this.userModel.countDocuments().exec(),
+            this.userModel.find(filter).sort(sort).skip(skip).limit(limit).exec(),
+            this.userModel.countDocuments(filter).exec(),
         ]);
 
         return {
@@ -43,7 +62,8 @@ export class UserService {
     }
 
     async createUser(dto: CreateUserDto) {
-        const existing = await this.userModel.findOne({ email: dto.email });
+        const email = this.normalizeEmail(dto.email);
+        const existing = await this.userModel.findOne({ email });
         if (existing) throw new ConflictException(MESSAGES.EMAIL_IN_USE);
 
         const hashedPassword = dto.password
@@ -52,7 +72,7 @@ export class UserService {
 
         const user = await this.userModel.create({
             name: dto.name,
-            email: dto.email,
+            email,
             phone: dto.phone,
             role: dto.role ?? 'Viewer',
             profession: dto.profession ?? 'Employee',
@@ -69,19 +89,32 @@ export class UserService {
     }
 
     async getUserById(id: string) {
+        this.ensureValidId(id);
         const user = await this.userModel.findById(id);
         if (!user) throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
         return user.toJSON();
     }
 
     async getMe(userId: string) {
+        this.ensureValidId(userId);
         const user = await this.userModel.findById(userId);
         if (!user) throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
         return user.toJSON();
     }
 
     async updateUser(id: string, dto: UpdateUserDto) {
+        this.ensureValidId(id);
         const updateData: Partial<User> = { ...dto };
+
+        if (dto.email) {
+            const email = this.normalizeEmail(dto.email);
+            const existing = await this.userModel.findOne({
+                email,
+                _id: { $ne: id },
+            });
+            if (existing) throw new ConflictException(MESSAGES.EMAIL_IN_USE);
+            updateData.email = email;
+        }
 
         if (dto.password) {
             updateData.password = await bcrypt.hash(dto.password, 10);
@@ -95,8 +128,19 @@ export class UserService {
     }
 
     async deleteUser(id: string) {
+        this.ensureValidId(id);
         const user = await this.userModel.findByIdAndDelete(id);
         if (!user) throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
         return user.toJSON();
+    }
+
+    private ensureValidId(id: string) {
+        if (!isValidObjectId(id)) {
+            throw new BadRequestException('Invalid user id');
+        }
+    }
+
+    private normalizeEmail(email: string) {
+        return email.trim().toLowerCase();
     }
 }
