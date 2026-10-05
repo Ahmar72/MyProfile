@@ -19,16 +19,31 @@ export class UserService {
         private emailService: EmailService,
     ) {}
 
-    async getUsers(page = 1, limit = 10, sortBy = 'createdAt', sortOrder: 'asc' | 'desc' = 'desc') {
+    async getUsers(
+        page = 1,
+        limit = 10,
+        sortBy = 'createdAt',
+        sortOrder: 'asc' | 'desc' = 'desc',
+        search?: string,
+    ) {
         const skip = (page - 1) * limit;
         const sortField = sortBy === 'name' || sortBy === 'email' ? sortBy : 'createdAt';
         const sort: Record<string, 1 | -1> = {
             [sortField]: sortOrder === 'asc' ? 1 : -1,
         };
+        const searchTerm = search?.trim();
+        const filter = searchTerm
+            ? {
+                  $or: [
+                      { name: { $regex: searchTerm, $options: 'i' } },
+                      { email: { $regex: searchTerm, $options: 'i' } },
+                  ],
+              }
+            : {};
 
         const [users, totalUsers] = await Promise.all([
-            this.userModel.find().sort(sort).skip(skip).limit(limit).exec(),
-            this.userModel.countDocuments().exec(),
+            this.userModel.find(filter).sort(sort).skip(skip).limit(limit).exec(),
+            this.userModel.countDocuments(filter).exec(),
         ]);
 
         return {
