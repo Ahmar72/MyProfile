@@ -30,7 +30,7 @@ export class AuthService {
 
     // ============ SIGNUP ============
     async signup(dto: SignupDto) {
-        const email = dto.email.trim().toLowerCase();
+        const email = this.normalizeEmail(dto.email);
         const existing = await this.userModel.findOne({ email });
 
         if (existing && existing.isVerified) {
@@ -68,7 +68,7 @@ export class AuthService {
     // ============ VERIFY OTP ============
     async verifyOTP(email: string, otp: string) {
         const user = await this.userModel
-            .findOne({ email: email.trim().toLowerCase() })
+            .findOne({ email: this.normalizeEmail(email) })
             .select('+otp +otpExpiresAt');
 
         if (!user || !user.otp || !user.otpExpiresAt) {
@@ -113,7 +113,7 @@ export class AuthService {
     // ============ LOGIN ============
     async login(dto: LoginDto) {
         const user = await this.userModel
-            .findOne({ email: dto.email.trim().toLowerCase() })
+            .findOne({ email: this.normalizeEmail(dto.email) })
             .select('+password');
 
         if (!user) throw new UnauthorizedException(MESSAGES.INVALID_CREDENTIALS);
@@ -142,7 +142,7 @@ export class AuthService {
 
     // ============ FORGOT PASSWORD ============
     async forgotPassword(email: string) {
-        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedEmail = this.normalizeEmail(email);
         const user = await this.userModel.findOne({ email: normalizedEmail });
 
         if (!user) {
@@ -168,7 +168,7 @@ export class AuthService {
     // ============ RESEND OTP ============
     async resendOTP(email: string) {
         const user = await this.userModel.findOne({
-            email: email.trim().toLowerCase(),
+            email: this.normalizeEmail(email),
         });
         if (!user) throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
 
@@ -187,7 +187,7 @@ export class AuthService {
     // ============ RESET PASSWORD ============
     async resetPassword(email: string, otp: string, password: string) {
         const user = await this.userModel
-            .findOne({ email: email.trim().toLowerCase() })
+            .findOne({ email: this.normalizeEmail(email) })
             .select('+otp +otpExpiresAt');
 
         if (!user || !user.otp || !user.otpExpiresAt) {
@@ -213,7 +213,7 @@ export class AuthService {
     // ============ CHECK EMAIL ============
     async checkEmail(email: string) {
         const user = await this.userModel.findOne({
-            email: email.trim().toLowerCase(),
+            email: this.normalizeEmail(email),
         });
 
         if (!user) {
@@ -308,6 +308,10 @@ async logout(userId: string) {
 }
 
     // ============ PRIVATE: GENERATE TOKENS ============
+    private normalizeEmail(email: string) {
+        return email.trim().toLowerCase();
+    }
+
     private async generateTokens(user: HydratedDocument<User>) {
     const payload = { userId: user._id.toString(), email: user.email };
 
