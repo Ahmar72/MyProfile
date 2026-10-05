@@ -12,6 +12,7 @@ export type UserDocument = User & Document;
             delete ret.otp;
             delete ret.otpExpiresAt;
             delete ret.__v;
+            delete ret.refreshToken;
             return ret;
         },
     },
@@ -19,6 +20,9 @@ export type UserDocument = User & Document;
 export class User {
     @Prop({ required: true, trim: true })
     name: string;
+
+    @Prop({ select: false })
+refreshToken?: string;
 
     @Prop({ required: true, unique: true, lowercase: true, trim: true })
     email: string;

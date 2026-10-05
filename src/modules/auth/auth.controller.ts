@@ -8,6 +8,10 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { CheckEmailDto } from './dto/check-email.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import type { JwtPayload } from '../../common/interfaces/payload.interface.js';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -68,4 +72,12 @@ async refreshToken(@Body() dto: RefreshTokenDto) {
         const payload = await this.authService.checkEmail(dto.email);
         return { message: 'Email checked successfully', payload };
     }
+
+    @Post('logout')
+@UseGuards(JwtAuthGuard)
+async logout(@CurrentUser() user: JwtPayload) {
+    const result = await this.authService.logout(user.userId);
+    return { message: result.message, payload: {} };
+}
+
 }
