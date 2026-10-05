@@ -107,7 +107,13 @@ export class UserService {
         const updateData: Partial<User> = { ...dto };
 
         if (dto.email) {
-            updateData.email = this.normalizeEmail(dto.email);
+            const email = this.normalizeEmail(dto.email);
+            const existing = await this.userModel.findOne({
+                email,
+                _id: { $ne: id },
+            });
+            if (existing) throw new ConflictException(MESSAGES.EMAIL_IN_USE);
+            updateData.email = email;
         }
 
         if (dto.password) {
