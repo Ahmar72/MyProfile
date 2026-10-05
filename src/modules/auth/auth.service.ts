@@ -7,12 +7,12 @@ import {
     UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { HydratedDocument, Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 
-import { User, UserDocument } from '../user/schemas/user.schema.js';
+import { User } from '../user/schemas/user.schema.js';
 import { EmailService } from '../../email/email.service.js';
 import { SignupDto } from './dto/signup.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -22,7 +22,7 @@ import { MESSAGES } from '../../common/constants/messages.js';
 @Injectable()
 export class AuthService {
     constructor(
-        @InjectModel(User.name) private userModel: Model<UserDocument>,
+        @InjectModel(User.name) private userModel: Model<User>,
         private jwt: JwtService,
         private config: ConfigService,
         private emailService: EmailService,
@@ -30,7 +30,7 @@ export class AuthService {
 
     // ============ SIGNUP ============
     async signup(dto: SignupDto) {
-        const email = dto.email.trim().toLowerCase();
+        const email = this.normalizeEmail(dto.email);
         const existing = await this.userModel.findOne({ email });
 
         if (existing && existing.isVerified) {
@@ -68,7 +68,7 @@ export class AuthService {
     // ============ VERIFY OTP ============
     async verifyOTP(email: string, otp: string) {
         const user = await this.userModel
-            .findOne({ email: email.trim().toLowerCase() })
+            .findOne({ email: this.normalizeEmail(email) })
             .select('+otp +otpExpiresAt');
 
         if (!user || !user.otp || !user.otpExpiresAt) {
@@ -113,7 +113,7 @@ export class AuthService {
     // ============ LOGIN ============
     async login(dto: LoginDto) {
         const user = await this.userModel
-            .findOne({ email: dto.email.trim().toLowerCase() })
+            .findOne({ email: this.normalizeEmail(dto.email) })
             .select('+password');
 
         if (!user) throw new UnauthorizedException(MESSAGES.INVALID_CREDENTIALS);
@@ -142,7 +142,7 @@ export class AuthService {
 
     // ============ FORGOT PASSWORD ============
     async forgotPassword(email: string) {
-        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedEmail = this.normalizeEmail(email);
         const user = await this.userModel.findOne({ email: normalizedEmail });
 
         if (!user) {
@@ -168,7 +168,7 @@ export class AuthService {
     // ============ RESEND OTP ============
     async resendOTP(email: string) {
         const user = await this.userModel.findOne({
-            email: email.trim().toLowerCase(),
+            email: this.normalizeEmail(email),
         });
         if (!user) throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
 
@@ -187,7 +187,7 @@ export class AuthService {
     // ============ RESET PASSWORD ============
     async resetPassword(email: string, otp: string, password: string) {
         const user = await this.userModel
-            .findOne({ email: email.trim().toLowerCase() })
+            .findOne({ email: this.normalizeEmail(email) })
             .select('+otp +otpExpiresAt');
 
         if (!user || !user.otp || !user.otpExpiresAt) {
@@ -213,7 +213,7 @@ export class AuthService {
     // ============ CHECK EMAIL ============
     async checkEmail(email: string) {
         const user = await this.userModel.findOne({
-            email: email.trim().toLowerCase(),
+            email: this.normalizeEmail(email),
         });
 
         if (!user) {
@@ -227,20 +227,108 @@ export class AuthService {
         };
     }
 
-    // ============ PRIVATE: GENERATE TOKENS ============
-    private async generateTokens(user: UserDocument) {
-        const payload = { userId: user._id.toString(), email: user.email };
+    // ============ CHANGE PASSWORD ============
+    async changePassword(
+        userId: string,
+        currentPassword: string,
+        newPassword: string,
+    ) {
+        const user = await this.userModel.findById(userId).select('+password');
 
-        const accessToken = await this.jwt.signAsync(payload, {
-            secret: this.config.get('jwt.secret'),
-            expiresIn: this.config.get('jwt.accessExpires'),
-        });
+        if (!user || !user.password) {
+            throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+        }
 
-        const refreshToken = await this.jwt.signAsync(payload, {
-            secret: this.config.get('jwt.refreshSecret'),
-            expiresIn: this.config.get('jwt.refreshExpires'),
-        });
+        const matches = await bcrypt.compare(currentPassword, user.password);
+        if (!matches) {
+            throw new UnauthorizedException(MESSAGES.INVALID_CREDENTIALS);
+        }
 
-        return { accessToken, refreshToken };
+        if (await bcrypt.compare(newPassword, user.password)) {
+            throw new BadRequestException(
+                'New password must be different from the current password',
+            );
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        user.refreshToken = undefined;
+        await user.save();
+
+        return { message: 'Password changed successfully' };
     }
+
+    // ============ REFRESH TOKEN ============
+    async refreshToken(refreshToken: string) {
+        try {
+            const payload = await this.jwt.verifyAsync(refreshToken, {
+                secret: this.config.get('jwt.refreshSecret'),
+            });
+
+            const userWithToken = await this.userModel
+                .findById(payload.userId)
+                .select('+refreshToken');
+
+            if (!userWithToken || userWithToken.refreshToken !== refreshToken) {
+                throw new UnauthorizedException('Refresh token has been revoked');
+            }
+
+            const user = await this.userModel.findById(payload.userId);
+            if (!user) {
+                throw new UnauthorizedException('User not found');
+            }
+
+            if (!user.isVerified) {
+                throw new ForbiddenException(MESSAGES.EMAIL_NOT_VERIFIED);
+            }
+
+            const tokens = await this.generateTokens(user);
+
+            return {
+                message: 'Tokens refreshed successfully',
+                payload: tokens,
+            };
+        } catch (error) {
+            throw new UnauthorizedException('Invalid or expired refresh token');
+        }
+    }
+
+
+    // ============ LOGOUT ============
+async logout(userId: string) {
+    const user = await this.userModel.findById(userId).select('+refreshToken');
+    if (!user) {
+        throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+    }
+
+    // Clear the refresh token
+    user.refreshToken = undefined;
+    await user.save();
+
+    return { message: 'Logged out successfully' };
+}
+
+    // ============ PRIVATE: GENERATE TOKENS ============
+    private normalizeEmail(email: string) {
+        return email.trim().toLowerCase();
+    }
+
+    private async generateTokens(user: HydratedDocument<User>) {
+    const payload = { userId: user._id.toString(), email: user.email };
+
+    const accessToken = await this.jwt.signAsync(payload, {
+        secret: this.config.get('jwt.secret'),
+        expiresIn: this.config.get('jwt.accessExpires'),
+    });
+
+    const refreshToken = await this.jwt.signAsync(payload, {
+        secret: this.config.get('jwt.refreshSecret'),
+        expiresIn: this.config.get('jwt.refreshExpires'),
+    });
+
+    // Save the refresh token for logout support
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    return { accessToken, refreshToken };
+}
 }
