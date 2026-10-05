@@ -37,17 +37,21 @@ export class UserController {
     @ApiQuery({ name: 'sortBy', required: false, enum: ['createdAt', 'name', 'email'], example: 'createdAt' })
     @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], example: 'desc' })
     @ApiQuery({ name: 'search', required: false, example: 'jane' })
+    @ApiQuery({ name: 'verified', required: false, enum: ['true', 'false'], example: 'true' })
     async getUsers(
         @Query('page') page?: string,
         @Query('limit') limit?: string,
         @Query('sortBy') sortBy?: string,
         @Query('sortOrder') sortOrder?: string,
         @Query('search') search?: string,
+        @Query('verified') verified?: string,
     ) {
         const p = Math.max(parseInt(page || '1', 10), 1);
         const l = Math.min(Math.max(parseInt(limit || '10', 10), 1), 100);
         const sortField = ['createdAt', 'name', 'email'].includes(sortBy ?? '') ? sortBy : 'createdAt';
         const sortDirection = sortOrder === 'asc' ? 'asc' : 'desc';
+        const verifiedFilter =
+            verified === 'true' ? true : verified === 'false' ? false : undefined;
 
         const payload = await this.userService.getUsers(
             p,
@@ -55,6 +59,7 @@ export class UserController {
             sortField,
             sortDirection,
             search,
+            verifiedFilter,
         );
         return { message: MESSAGES.USERS_FETCHED, payload };
     }

@@ -25,6 +25,7 @@ export class UserService {
         sortBy = 'createdAt',
         sortOrder: 'asc' | 'desc' = 'desc',
         search?: string,
+        verified?: boolean,
     ) {
         const skip = (page - 1) * limit;
         const sortField = sortBy === 'name' || sortBy === 'email' ? sortBy : 'createdAt';
@@ -32,14 +33,16 @@ export class UserService {
             [sortField]: sortOrder === 'asc' ? 1 : -1,
         };
         const searchTerm = search?.trim();
-        const filter = searchTerm
-            ? {
-                  $or: [
-                      { name: { $regex: searchTerm, $options: 'i' } },
-                      { email: { $regex: searchTerm, $options: 'i' } },
-                  ],
-              }
-            : {};
+        const filter: Record<string, unknown> = {};
+        if (searchTerm) {
+            filter.$or = [
+                { name: { $regex: searchTerm, $options: 'i' } },
+                { email: { $regex: searchTerm, $options: 'i' } },
+            ];
+        }
+        if (verified !== undefined) {
+            filter.isVerified = verified;
+        }
 
         const [users, totalUsers] = await Promise.all([
             this.userModel.find(filter).sort(sort).skip(skip).limit(limit).exec(),
