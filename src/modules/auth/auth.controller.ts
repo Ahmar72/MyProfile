@@ -7,10 +7,17 @@ import { VerifyOtpDto } from './dto/verify-otp.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { CheckEmailDto } from './dto/check-email.dto.js';
+import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+    @Post('refresh-token')
+async refreshToken(@Body() dto: RefreshTokenDto) {
+    return (this.authService as unknown as {
+        refreshToken(refreshToken: string): Promise<unknown>;
+    }).refreshToken(dto.refreshToken);
+}
     constructor(private readonly authService: AuthService) {}
 
     @Post('signup')

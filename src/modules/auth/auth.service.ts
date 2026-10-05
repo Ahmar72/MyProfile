@@ -214,6 +214,36 @@ export class AuthService {
     async checkEmail(email: string) {
         const user = await this.userModel.findOne({
             email: email.trim().toLowerCase(),
+            // ============ REFRESH TOKEN ============
+async refreshToken(refreshToken: string) {
+    try {
+        // Verify the refresh token using the refresh secret
+        const payload = await this.jwt.verifyAsync(refreshToken, {
+            secret: this.config.get('jwt.refreshSecret'),
+        });
+
+        // Find the user to ensure they still exist
+        const user = await this.userModel.findById(payload.userId);
+        if (!user) {
+            throw new UnauthorizedException('User not found');
+        }
+
+        // Ensure user is still verified
+        if (!user.isVerified) {
+            throw new ForbiddenException(MESSAGES.EMAIL_NOT_VERIFIED);
+        }
+
+        // Generate fresh tokens
+        const tokens = await this.generateTokens(user);
+
+        return {
+            message: 'Tokens refreshed successfully',
+            payload: tokens,
+        };
+    } catch (error) {
+        throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+}
         });
 
         if (!user) {
