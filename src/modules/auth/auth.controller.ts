@@ -1,5 +1,10 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+    ApiBearerAuth,
+    ApiCreatedResponse,
+    ApiOkResponse,
+    ApiTags,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { SignupDto } from './dto/signup.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -17,18 +22,21 @@ import { ChangePasswordDto } from './dto/change-password.dto.js';
 @Controller('auth')
 export class AuthController {
     @Post('refresh-token')
+    @ApiOkResponse({ description: 'Access and refresh tokens returned' })
     async refreshToken(@Body() dto: RefreshTokenDto) {
         return this.authService.refreshToken(dto.refreshToken);
     }
     constructor(private readonly authService: AuthService) {}
 
     @Post('signup')
+    @ApiCreatedResponse({ description: 'Signup OTP sent successfully' })
     async signup(@Body() dto: SignupDto) {
         const result = await this.authService.signup(dto);
         return { message: result.message, payload: {} };
     }
 
     @Post('verify-otp')
+    @ApiOkResponse({ description: 'OTP verified successfully' })
     async verifyOTP(@Body() dto: VerifyOtpDto) {
         const result = await this.authService.verifyOTP(dto.email, dto.otp);
         return {
@@ -43,29 +51,34 @@ export class AuthController {
     }
 
     @Post('login')
+    @ApiOkResponse({ description: 'User authenticated and tokens returned' })
     async login(@Body() dto: LoginDto) {
         return this.authService.login(dto);
     }
 
     @Post('forgot-password')
+    @ApiCreatedResponse({ description: 'Password reset OTP sent successfully' })
     async forgotPassword(@Body() dto: ForgotPasswordDto) {
         const result = await this.authService.forgotPassword(dto.email);
         return { message: result.message, payload: {} };
     }
 
     @Post('resend-otp')
+    @ApiCreatedResponse({ description: 'OTP resent successfully' })
     async resendOTP(@Body() dto: ForgotPasswordDto) {
         const result = await this.authService.resendOTP(dto.email);
         return { message: result.message, payload: {} };
     }
 
     @Post('reset-password')
+    @ApiOkResponse({ description: 'Password reset successfully' })
     async resetPassword(@Body() dto: ResetPasswordDto) {
         const result = await this.authService.resetPassword(dto.email, dto.otp, dto.password);
         return { message: result.message, payload: {} };
     }
 
     @Post('check-email')
+    @ApiOkResponse({ description: 'Email status returned' })
     async checkEmail(@Body() dto: CheckEmailDto) {
         const payload = await this.authService.checkEmail(dto.email);
         return { message: 'Email checked successfully', payload };
@@ -74,6 +87,7 @@ export class AuthController {
     @Post('change-password')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
+    @ApiOkResponse({ description: 'Password changed successfully' })
     async changePassword(
         @CurrentUser() user: JwtPayload,
         @Body() dto: ChangePasswordDto,
@@ -89,6 +103,7 @@ export class AuthController {
     @Post('logout')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
+    @ApiOkResponse({ description: 'Refresh token revoked successfully' })
     async logout(@CurrentUser() user: JwtPayload) {
         const result = await this.authService.logout(user.userId);
         return { message: result.message, payload: {} };
