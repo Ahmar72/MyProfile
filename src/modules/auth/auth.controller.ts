@@ -1,5 +1,5 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { SignupDto } from './dto/signup.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -8,10 +8,10 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { CheckEmailDto } from './dto/check-email.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
-import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { JwtPayload } from '../../common/interfaces/payload.interface.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -71,6 +71,21 @@ async refreshToken(@Body() dto: RefreshTokenDto) {
     async checkEmail(@Body() dto: CheckEmailDto) {
         const payload = await this.authService.checkEmail(dto.email);
         return { message: 'Email checked successfully', payload };
+    }
+
+    @Post('change-password')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    async changePassword(
+        @CurrentUser() user: JwtPayload,
+        @Body() dto: ChangePasswordDto,
+    ) {
+        const result = await this.authService.changePassword(
+            user.userId,
+            dto.currentPassword,
+            dto.newPassword,
+        );
+        return { message: result.message, payload: {} };
     }
 
     @Post('logout')

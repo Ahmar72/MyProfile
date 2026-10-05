@@ -227,6 +227,29 @@ export class AuthService {
         };
     }
 
+    // ============ CHANGE PASSWORD ============
+    async changePassword(
+        userId: string,
+        currentPassword: string,
+        newPassword: string,
+    ) {
+        const user = await this.userModel.findById(userId).select('+password');
+
+        if (!user || !user.password) {
+            throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+        }
+
+        const matches = await bcrypt.compare(currentPassword, user.password);
+        if (!matches) {
+            throw new UnauthorizedException(MESSAGES.INVALID_CREDENTIALS);
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        return { message: 'Password changed successfully' };
+    }
+
     // ============ REFRESH TOKEN ============
     async refreshToken(refreshToken: string) {
         try {
