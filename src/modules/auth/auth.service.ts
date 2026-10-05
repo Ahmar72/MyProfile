@@ -244,6 +244,12 @@ export class AuthService {
             throw new UnauthorizedException(MESSAGES.INVALID_CREDENTIALS);
         }
 
+        if (await bcrypt.compare(newPassword, user.password)) {
+            throw new BadRequestException(
+                'New password must be different from the current password',
+            );
+        }
+
         user.password = await bcrypt.hash(newPassword, 10);
         user.refreshToken = undefined;
         await user.save();
