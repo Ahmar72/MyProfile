@@ -245,6 +245,7 @@ export class AuthService {
         }
 
         user.password = await bcrypt.hash(newPassword, 10);
+        user.refreshToken = undefined;
         await user.save();
 
         return { message: 'Password changed successfully' };
