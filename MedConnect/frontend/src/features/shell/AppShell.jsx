@@ -229,6 +229,15 @@ export default function AppShell({ children }) {
                 <TrendingUp size={17} />
                 <span>Earnings & Payouts</span>
               </NavLink>
+
+              <NavLink
+                to="/doctor?tab=profile"
+                className={({ isActive }) => `sidebar-item ${location.pathname === '/doctor' && location.search.includes('profile') ? 'active' : ''}`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <User size={17} />
+                <span>My Clinician Profile</span>
+              </NavLink>
             </nav>
           </>
         )}
@@ -455,7 +464,7 @@ export default function AppShell({ children }) {
               style={{ cursor: 'pointer' }}
               onClick={() => {
                 if (isPatient) navigate('/appointments?tab=profile');
-                else if (isDoctor) navigate('/doctor');
+                else if (isDoctor) navigate('/doctor?tab=profile');
                 else if (isAdmin) navigate('/admin');
               }}
             >
