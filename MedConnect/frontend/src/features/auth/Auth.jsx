@@ -21,17 +21,24 @@ import {
 export function Auth({ type = 'login' }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, registerDoctor, showToast } = useDemo();
+  const { login, registerPatient, registerDoctor, showToast } = useDemo();
 
-  const initialRole = searchParams.get('role') || 'patient';
+  const isStaffRequested = searchParams.get('staff') === 'true' || searchParams.get('role') === 'admin';
+  const initialRole = isStaffRequested ? 'admin' : (searchParams.get('role') || 'patient');
   const [role, setRole] = useState(initialRole); // 'patient' | 'doctor' | 'admin'
+  const redirectPath = searchParams.get('redirect') || null;
 
   // General fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('••••••••');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('+92 300 ');
+  const [phone, setPhone] = useState('+92 300 4567890');
   const [city, setCity] = useState('Lahore');
+
+  // Patient Mobile Verification Simulation Step
+  const [patientStep, setPatientStep] = useState('form'); // 'form' | 'otp'
+  const [otpCode, setOtpCode] = useState('');
+  const simulatedOtp = '8492';
 
   // Doctor specific registration fields
   const [doctorForm, setDoctorForm] = useState({
@@ -49,11 +56,38 @@ export function Auth({ type = 'login' }) {
   const isReset = type === 'reset';
   const isSignup = type === 'signup';
 
+  const navigatePostAuth = (userRole) => {
+    if (redirectPath) {
+      navigate(redirectPath);
+      return;
+    }
+    if (userRole === 'patient') navigate('/patient');
+    else if (userRole === 'doctor' || userRole === 'doctor_pending') navigate('/doctor');
+    else if (userRole === 'admin') navigate('/admin');
+    else navigate('/');
+  };
+
   const handleQuickLogin = (selectedRole) => {
     login(selectedRole);
-    if (selectedRole === 'patient') navigate('/patient');
-    else if (selectedRole === 'doctor' || selectedRole === 'doctor_pending') navigate('/doctor');
-    else if (selectedRole === 'admin') navigate('/admin');
+    navigatePostAuth(selectedRole);
+  };
+
+  const handleVerifyOtpAndRegister = (e) => {
+    e.preventDefault();
+    if (otpCode !== simulatedOtp && otpCode !== '1234') {
+      showToast('Invalid verification code. Please enter 8492.', 'error');
+      return;
+    }
+
+    const createdPatient = registerPatient({
+      name: name || 'Ayesha Raza',
+      phone: phone || '+92 300 9876543',
+      email: email || 'ayesha.raza@example.com',
+      city: city || 'Lahore',
+    });
+
+    showToast(`Mobile number verified! Account activated for ${createdPatient.name}.`, 'success');
+    navigatePostAuth('patient');
   };
 
   const handleSubmit = (e) => {
@@ -71,36 +105,23 @@ export function Auth({ type = 'login' }) {
         const createdDoc = registerDoctor(doctorForm);
         login(createdDoc);
         showToast('Clinician application submitted! Under review by Admin.', 'success');
-        navigate('/doctor');
+        navigatePostAuth('doctor');
       } else {
-        // Register patient
-        const newPatient = {
-          id: `patient-${Date.now()}`,
-          name: name || 'Ayesha Raza',
-          phone: phone || '+92 300 9876543',
-          email: email || 'ayesha.raza@example.com',
-          city: city || 'Lahore',
-          role: 'patient',
-          mrn: `MC-${Math.floor(10000 + Math.random() * 90000)}`,
-          age: 26,
-          gender: 'Female',
-          bloodGroup: 'O+',
-        };
-        login(newPatient);
-        showToast(`Welcome to MedConnect, ${newPatient.name}!`, 'success');
-        navigate('/patient');
+        // Patient registration: advance to Mobile OTP verification step
+        setPatientStep('otp');
+        showToast(`Verification SMS sent to ${phone}. Enter code ${simulatedOtp} to verify.`, 'info');
       }
     } else {
       // Normal Login
       if (role === 'patient') {
         login('patient');
-        navigate('/patient');
+        navigatePostAuth('patient');
       } else if (role === 'doctor') {
         login('doctor');
-        navigate('/doctor');
+        navigatePostAuth('doctor');
       } else if (role === 'admin') {
         login('admin');
-        navigate('/admin');
+        navigatePostAuth('admin');
       }
     }
   };
@@ -173,8 +194,47 @@ export function Auth({ type = 'login' }) {
             </p>
           </div>
 
+          {/* Staff-Only Mode Notice if Accessing Admin Portal */}
+          {role === 'admin' && (
+            <div
+              style={{
+                backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                border: '1.5px solid rgba(220, 38, 38, 0.3)',
+                borderRadius: '16px',
+                padding: '14px 18px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: '#DC2626',
+                  color: '#FFF',
+                  display: 'grid',
+                  placeItems: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Lock size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: '800', color: '#991B1B', textTransform: 'uppercase' }}>
+                  RESTRICTED HOSPITAL STAFF PORTAL
+                </div>
+                <div style={{ fontSize: '11.5px', color: '#7F1D1D' }}>
+                  Restricted to authorized MedConnect operations & clinical regulatory administrators.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Quick Demo Sign In Personas (Convenient for Evaluation) */}
-          {!isReset && (
+          {!isReset && patientStep !== 'otp' && (
             <div
               style={{
                 backgroundColor: 'var(--canvas-bg)',
@@ -187,52 +247,56 @@ export function Auth({ type = 'login' }) {
               <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--forest-700)', textTransform: 'uppercase', marginBottom: '8px' }}>
                 ⚡ ONE-CLICK DEMO SIGN-IN
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <button
-                  type="button"
-                  className="btn-white-capsule"
-                  style={{ border: '1px solid var(--border-strong)', fontSize: '11.5px', padding: '8px 10px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  onClick={() => handleQuickLogin('patient')}
-                >
-                  <Users size={14} color="var(--forest-800)" />
-                  <span>Patient (Alex Khan)</span>
-                </button>
+              <div style={{ display: 'grid', gridTemplateColumns: role === 'admin' ? '1fr' : '1fr 1fr', gap: '8px' }}>
+                {role === 'admin' ? (
+                  <button
+                    type="button"
+                    className="btn-white-capsule"
+                    style={{ border: '1.5px solid var(--forest-800)', fontSize: '12.5px', padding: '10px 14px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    onClick={() => handleQuickLogin('admin')}
+                  >
+                    <ShieldCheck size={16} color="var(--forest-800)" />
+                    <span>Enter as Operations Administrator (Full System Control)</span>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-white-capsule"
+                      style={{ border: '1px solid var(--border-strong)', fontSize: '11.5px', padding: '8px 10px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => handleQuickLogin('patient')}
+                    >
+                      <Users size={14} color="var(--forest-800)" />
+                      <span>Patient (Alex Khan)</span>
+                    </button>
 
-                <button
-                  type="button"
-                  className="btn-white-capsule"
-                  style={{ border: '1px solid var(--border-strong)', fontSize: '11.5px', padding: '8px 10px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  onClick={() => handleQuickLogin('doctor')}
-                >
-                  <Stethoscope size={14} color="var(--forest-800)" />
-                  <span>Doctor (Dr. Maya Patel)</span>
-                </button>
+                    <button
+                      type="button"
+                      className="btn-white-capsule"
+                      style={{ border: '1px solid var(--border-strong)', fontSize: '11.5px', padding: '8px 10px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => handleQuickLogin('doctor')}
+                    >
+                      <Stethoscope size={14} color="var(--forest-800)" />
+                      <span>Doctor (Dr. Maya Patel)</span>
+                    </button>
 
-                <button
-                  type="button"
-                  className="btn-white-capsule"
-                  style={{ border: '1px solid var(--border-strong)', fontSize: '11.5px', padding: '8px 10px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  onClick={() => handleQuickLogin('doctor_pending')}
-                >
-                  <Clock size={14} color="#B45309" />
-                  <span>Applicant (Dr. Zainab)</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-white-capsule"
-                  style={{ border: '1px solid var(--border-strong)', fontSize: '11.5px', padding: '8px 10px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  onClick={() => handleQuickLogin('admin')}
-                >
-                  <ShieldCheck size={14} color="var(--forest-800)" />
-                  <span>Operations Admin</span>
-                </button>
+                    <button
+                      type="button"
+                      className="btn-white-capsule"
+                      style={{ border: '1px solid var(--border-strong)', fontSize: '11.5px', padding: '8px 10px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px', gridColumn: 'span 2' }}
+                      onClick={() => handleQuickLogin('doctor_pending')}
+                    >
+                      <Clock size={14} color="#B45309" />
+                      <span>Clinician Applicant (Dr. Zainab - Under PMDC Review)</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
 
-          {/* Role Selector Tabs */}
-          {!isReset && (
+          {/* Role Selector Tabs (Only Patient and Doctor visible to public visitors) */}
+          {!isReset && patientStep !== 'otp' && role !== 'admin' && (
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
               <button
                 type="button"
@@ -248,7 +312,7 @@ export function Auth({ type = 'login' }) {
                   fontSize: '12.5px',
                 }}
               >
-                Patient
+                Patient Account
               </button>
 
               <button
@@ -267,28 +331,109 @@ export function Auth({ type = 'login' }) {
               >
                 Doctor / Clinician
               </button>
-
-              <button
-                type="button"
-                onClick={() => setRole('admin')}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: '12px',
-                  border: `1.5px solid ${role === 'admin' ? 'var(--forest-800)' : 'var(--border-subtle)'}`,
-                  backgroundColor: role === 'admin' ? 'rgba(14, 56, 44, 0.05)' : '#FFFFFF',
-                  color: role === 'admin' ? 'var(--forest-800)' : 'var(--text-muted)',
-                  fontWeight: '700',
-                  fontSize: '12.5px',
-                }}
-              >
-                Admin
-              </button>
             </div>
           )}
 
-          {/* FORM */}
-          <form onSubmit={handleSubmit}>
+          {/* OTP MOBILE VERIFICATION SCREEN */}
+          {patientStep === 'otp' ? (
+            <form onSubmit={handleVerifyOtpAndRegister}>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '16px 0',
+                }}
+              >
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(197, 225, 165, 0.4)',
+                    color: 'var(--forest-800)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    margin: '0 auto 16px auto',
+                  }}
+                >
+                  <ShieldCheck size={28} />
+                </div>
+
+                <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '0 0 6px 0', color: 'var(--text-main)' }}>
+                  Verify Mobile Number
+                </h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px 0', lineHeight: '1.5' }}>
+                  To ensure medical record authenticity, enter the 4-digit SMS verification code sent to{' '}
+                  <b style={{ color: 'var(--forest-800)' }}>{phone}</b>.
+                </p>
+
+                <div
+                  style={{
+                    backgroundColor: 'var(--canvas-bg)',
+                    borderRadius: '14px',
+                    padding: '12px 16px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    border: '1px dashed var(--border-strong)',
+                  }}
+                >
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Demo SMS Code: <b style={{ color: 'var(--forest-800)', fontSize: '14px', letterSpacing: '2px' }}>{simulatedOtp}</b>
+                  </span>
+                  <button
+                    type="button"
+                    style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--forest-700)', textDecoration: 'underline' }}
+                    onClick={() => setOtpCode(simulatedOtp)}
+                  >
+                    Auto-Fill {simulatedOtp}
+                  </button>
+                </div>
+
+                <div className="form-group">
+                  <input
+                    type="text"
+                    maxLength={4}
+                    placeholder="• • • •"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    style={{
+                      width: '180px',
+                      margin: '0 auto',
+                      textAlign: 'center',
+                      fontSize: '24px',
+                      letterSpacing: '8px',
+                      fontWeight: '800',
+                      padding: '10px',
+                      borderRadius: '12px',
+                      border: '2px solid var(--forest-800)',
+                      backgroundColor: '#FFFFFF',
+                    }}
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-lime-pill"
+                  style={{ width: '100%', padding: '14px', marginTop: '16px', fontSize: '14px' }}
+                >
+                  <span>Verify & Activate Patient Account</span>
+                  <ArrowRight size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  style={{ marginTop: '16px', fontSize: '12.5px', color: 'var(--text-muted)' }}
+                  onClick={() => setPatientStep('form')}
+                >
+                  ← Change Mobile Number or Details
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* REGULAR AUTH FORM */
+            <form onSubmit={handleSubmit}>
             {/* DOCTOR SIGNUP SPECIFIC FORM */}
             {isSignup && role === 'doctor' ? (
               <>
@@ -522,6 +667,7 @@ export function Auth({ type = 'login' }) {
               </button>
             </div>
           </form>
+          )}
 
           {/* Bottom Switch Links */}
           <div

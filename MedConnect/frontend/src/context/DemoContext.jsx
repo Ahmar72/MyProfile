@@ -71,51 +71,91 @@ const INITIAL_PATIENTS = [
   },
 ];
 
-// Initial Hospital Branches
+// Initial Hospital Branches & Partner Medical Complexes
 const INITIAL_BRANCHES = [
   {
     id: 'br-1',
-    name: 'MedConnect Downtown Executive OPD',
-    city: 'Lahore',
-    address: '14-B Jail Road, Gulberg V, Lahore',
-    phone: '+92 42 35789000',
-    activeDoctors: 18,
-    rooms: 8,
-    timings: '08:00 AM - 10:00 PM',
+    name: 'Aga Khan University Hospital (AKUH) Executive Clinics',
+    city: 'Karachi',
+    address: 'National Stadium Road, Karachi, Sindh',
+    phone: '+92 21 111 911 911',
+    emergencyHelpline: '+92 21 3486 1090',
+    activeDoctors: 42,
+    rooms: 24,
+    timings: '24/7 Emergency & Specialty OPD',
     status: 'Active',
+    departments: ['Cardiology', 'Oncology', 'Neurology', 'Pediatrics', 'Obstetrics'],
+    beds: '700+ Beds',
   },
   {
     id: 'br-2',
+    name: 'Shaukat Khanum Memorial Cancer Hospital & Research Centre',
+    city: 'Lahore',
+    address: '7A Block R-3, Johar Town, Lahore, Punjab',
+    phone: '+92 42 35905000',
+    emergencyHelpline: '+92 42 3590 5111',
+    activeDoctors: 35,
+    rooms: 18,
+    timings: '08:00 AM - 10:00 PM OPD (24/7 Emergency)',
+    status: 'Active',
+    departments: ['Oncology', 'Surgical Oncology', 'Pathology', 'Radiology'],
+    beds: '450+ Beds',
+  },
+  {
+    id: 'br-3',
+    name: 'Shifa International Hospital Specialty OPD',
+    city: 'Islamabad',
+    address: 'Pitras Bukhari Road, Sector H-8/4, Islamabad',
+    phone: '+92 51 8463000',
+    emergencyHelpline: '+92 51 846 3111',
+    activeDoctors: 38,
+    rooms: 20,
+    timings: '24/7 Emergency & Clinics',
+    status: 'Active',
+    departments: ['Cardiology', 'Nephrology', 'Organ Transplant', 'Gastroenterology'],
+    beds: '550+ Beds',
+  },
+  {
+    id: 'br-4',
     name: 'National Hospital & Medical Centre OPD',
     city: 'Lahore',
     address: 'Sector L, Phase 1, DHA, Lahore',
     phone: '+92 42 111 171 819',
-    activeDoctors: 24,
-    rooms: 12,
+    emergencyHelpline: '+92 42 3572 4444',
+    activeDoctors: 28,
+    rooms: 14,
     timings: '24/7 Emergency & Clinics',
     status: 'Active',
+    departments: ['Orthopedics', 'General Medicine', 'Dermatology', 'Urology'],
+    beds: '300+ Beds',
   },
   {
-    id: 'br-3',
+    id: 'br-5',
+    name: 'Doctors Hospital & Medical Centre',
+    city: 'Lahore',
+    address: '152-G/1, Canal Bank, Johar Town, Lahore',
+    phone: '+92 42 35302701',
+    emergencyHelpline: '+92 42 3530 2700',
+    activeDoctors: 30,
+    rooms: 16,
+    timings: '24/7 Emergency & Specialist OPD',
+    status: 'Active',
+    departments: ['Cardiology', 'Gastroenterology', 'Gynecology', 'Neurology'],
+    beds: '250+ Beds',
+  },
+  {
+    id: 'br-6',
     name: 'South City Hospital Specialty Clinics',
     city: 'Karachi',
     address: 'Rodney Street, Block 3, Clifton, Karachi',
     phone: '+92 21 35862301',
-    activeDoctors: 16,
-    rooms: 10,
-    timings: '09:00 AM - 09:00 PM',
+    emergencyHelpline: '+92 21 3586 2309',
+    activeDoctors: 22,
+    rooms: 12,
+    timings: '09:00 AM - 10:00 PM (24/7 ER)',
     status: 'Active',
-  },
-  {
-    id: 'br-4',
-    name: 'Shifa Executive Health Complex',
-    city: 'Islamabad',
-    address: 'Pitras Bukhari Road, H-8/4, Islamabad',
-    phone: '+92 51 8463000',
-    activeDoctors: 20,
-    rooms: 14,
-    timings: '08:00 AM - 11:00 PM',
-    status: 'Active',
+    departments: ['Cardiology', 'Internal Medicine', 'Cosmetic Surgery', 'ENT'],
+    beds: '180+ Beds',
   },
 ];
 
@@ -324,21 +364,17 @@ export function DemoProvider({ children }) {
   const [previewState, setPreviewState] = useState('normal');
   
   // Active Authenticated User & Role
-  // Roles: 'patient' | 'doctor' | 'admin' | null (guest)
-  const [currentUser, setCurrentUser] = useState({
-    id: 'patient-alex',
-    role: 'patient',
-    name: 'Alex Khan',
-    phone: '+92 300 1234567',
-    email: 'alex.khan@medconnect.pk',
-    mrn: 'MC-89241',
-    city: 'Lahore',
-    age: 29,
-    gender: 'Male',
-    bloodGroup: 'B+',
+  // Roles: 'patient' | 'doctor' | 'admin' | null (guest on landing page)
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('medconnect_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
 
-  const [currentRole, setCurrentRole] = useState('patient');
+  const [currentRole, setCurrentRole] = useState(() => currentUser?.role || 'guest');
   const [selectedCity, setSelectedCity] = useState(CITIES[0]);
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
   const [isDemoDataModalOpen, setIsDemoDataModalOpen] = useState(false);
@@ -358,6 +394,8 @@ export function DemoProvider({ children }) {
   useEffect(() => {
     if (currentUser?.role) {
       setCurrentRole(currentUser.role);
+    } else {
+      setCurrentRole('guest');
     }
   }, [currentUser]);
 
@@ -380,46 +418,98 @@ export function DemoProvider({ children }) {
     setActivityLog((prev) => [newAct, ...prev]);
   };
 
-  // Login handler
+  // Login handler with Session Storage
   const login = (roleOrUser) => {
+    let sessionUser = null;
     if (typeof roleOrUser === 'string') {
       if (roleOrUser === 'patient') {
         const patient = patientsList[0];
-        setCurrentUser({ ...patient, role: 'patient' });
+        sessionUser = { ...patient, role: 'patient', verified: true };
+        setCurrentUser(sessionUser);
         setCurrentRole('patient');
-        showToast(`Signed in as Patient (${patient.name})`, 'success');
+        showToast(`Signed in as Verified Patient (${patient.name})`, 'success');
       } else if (roleOrUser === 'doctor') {
         const doc = doctorsList.find((d) => d.status === 'verified') || doctorsList[0];
-        setCurrentUser({ ...doc, role: 'doctor' });
+        sessionUser = { ...doc, role: 'doctor' };
+        setCurrentUser(sessionUser);
         setCurrentRole('doctor');
         showToast(`Signed in as Doctor (${doc.name})`, 'success');
       } else if (roleOrUser === 'doctor_pending') {
         const pendingDoc = doctorsList.find((d) => d.status === 'pending');
-        setCurrentUser({ ...pendingDoc, role: 'doctor' });
+        sessionUser = { ...pendingDoc, role: 'doctor' };
+        setCurrentUser(sessionUser);
         setCurrentRole('doctor');
         showToast(`Signed in as Doctor Applicant (${pendingDoc.name} - Under Review)`, 'info');
       } else if (roleOrUser === 'admin') {
-        setCurrentUser({
+        sessionUser = {
           id: 'admin-super',
           role: 'admin',
           name: 'Super Administrator',
           email: 'admin@medconnect.pk',
           title: 'Head of Hospital Operations',
-        });
+        };
+        setCurrentUser(sessionUser);
         setCurrentRole('admin');
         showToast('Signed in to Operations Admin Console', 'success');
       }
     } else {
-      setCurrentUser(roleOrUser);
+      sessionUser = roleOrUser;
+      setCurrentUser(sessionUser);
       setCurrentRole(roleOrUser.role);
       showToast(`Signed in as ${roleOrUser.name}`, 'success');
+    }
+
+    if (sessionUser) {
+      try {
+        sessionStorage.setItem('medconnect_session', JSON.stringify(sessionUser));
+      } catch (e) {
+        console.error('Failed to save session', e);
+      }
     }
   };
 
   const logout = () => {
     setCurrentUser(null);
     setCurrentRole('guest');
+    try {
+      sessionStorage.removeItem('medconnect_session');
+    } catch (e) {
+      console.error(e);
+    }
     showToast('You have been safely signed out.', 'info');
+  };
+
+  // PATIENT REGISTRATION WITH PHONE/EMAIL VERIFICATION
+  const registerPatient = (patientData) => {
+    const newPatient = {
+      id: `patient-${Date.now()}`,
+      mrn: `MC-${Math.floor(10000 + Math.random() * 90000)}`,
+      name: patientData.name,
+      phone: patientData.phone,
+      email: patientData.email,
+      city: patientData.city || 'Lahore',
+      age: patientData.age || 28,
+      gender: patientData.gender || 'Female',
+      bloodGroup: patientData.bloodGroup || 'B+',
+      emergencyContact: patientData.emergencyContact || 'Family Member',
+      totalVisits: 0,
+      status: 'Active',
+      verified: true,
+      allergies: 'None reported',
+      registeredDate: 'Today',
+      role: 'patient',
+    };
+
+    setPatientsList((prev) => [newPatient, ...prev]);
+    login(newPatient);
+    addActivity(
+      `${newPatient.name} (Patient)`,
+      'Registered Verified Patient Account',
+      `Mobile verified (${newPatient.phone}), MRN ${newPatient.mrn} issued.`,
+      'patient_signup'
+    );
+    showToast(`Welcome to MedConnect, ${newPatient.name}! Mobile verified.`, 'success');
+    return newPatient;
   };
 
   // DOCTOR REGISTRATION FLOW (Submitted with 'pending' status for Admin approval)
@@ -708,6 +798,7 @@ export function DemoProvider({ children }) {
         activityLog,
         toast,
         showToast,
+        registerPatient,
         registerDoctor,
         approveDoctor,
         rejectDoctor,
