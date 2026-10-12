@@ -407,26 +407,36 @@ button {
    ========================================================================== */
 
 .canva-hero-card {
-  background-color: var(--forest-800);
-  border-radius: 24px;
-  padding: 56px 60px;
+  background: radial-gradient(circle at 85% 25%, rgba(197, 225, 165, 0.2), transparent 55%),
+              linear-gradient(135deg, var(--forest-900) 0%, var(--forest-800) 50%, var(--forest-700) 100%);
+  border-radius: 28px;
+  padding: 64px 64px;
   color: #FFFFFF;
   position: relative;
   overflow: hidden;
-  box-shadow: var(--shadow-lg);
-  margin-bottom: 32px;
+  box-shadow: 0 20px 50px rgba(8, 33, 25, 0.25);
+  margin-bottom: 40px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Starburst Geometric Watermark from Canva screenshot */
 .canva-starburst {
   position: absolute;
-  right: -30px;
+  right: -20px;
   top: 50%;
   transform: translateY(-50%);
-  width: 380px;
-  height: 380px;
+  width: 440px;
+  height: 440px;
   opacity: 0.16;
   pointer-events: none;
+  animation: starburst-slow-spin 90s linear infinite;
+}
+
+@keyframes starburst-slow-spin {
+  0% { transform: translateY(-50%) rotate(0deg); }
+  100% { transform: translateY(-50%) rotate(360deg); }
 }
 
 .hero-pill-badge {
@@ -1626,23 +1636,103 @@ button {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(14, 33, 25, 0.65);
-  backdrop-filter: blur(4px);
+  background-color: rgba(8, 25, 19, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 1000;
   padding: 20px;
+  overflow-y: auto;
 }
 
 .modal-dialog {
   background-color: #FFFFFF;
-  border-radius: 24px;
+  border-radius: 28px;
   width: 100%;
-  max-width: 560px;
-  box-shadow: var(--shadow-xl);
+  max-width: 580px;
+  box-shadow: 0 25px 60px -15px rgba(8, 33, 25, 0.35);
   overflow: hidden;
   animation: modal-pop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(14, 56, 44, 0.08);
+}
+
+/* Comprehensive Interactive Entity & Auth Modal System */
+.interactive-modal-card {
+  background-color: #FFFFFF;
+  border-radius: 28px;
+  box-shadow: 0 30px 70px -12px rgba(8, 33, 25, 0.4), 0 0 0 1px rgba(14, 56, 44, 0.08);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  animation: modal-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-interactive-header {
+  padding: 24px 32px 18px 32px;
+  background: linear-gradient(180deg, rgba(197, 225, 165, 0.18) 0%, rgba(255, 255, 255, 0) 100%);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  position: relative;
+}
+
+.modal-close-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  flex-shrink: 0;
+}
+
+.modal-close-icon-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: var(--text-main);
+  transform: rotate(90deg);
+}
+
+.modal-interactive-body {
+  padding: 24px 32px 32px 32px;
+  overflow-y: auto;
+  max-height: calc(90vh - 120px);
+}
+
+.modal-tab-pill {
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modal-tab-pill.active {
+  background-color: var(--forest-800);
+  color: #FFFFFF;
+}
+
+.modal-tab-pill:not(.active) {
+  background-color: var(--canvas-bg);
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+}
+
+.modal-tab-pill:not(.active):hover {
+  border-color: var(--border-strong);
+  color: var(--text-main);
 }
 
 @keyframes modal-pop {

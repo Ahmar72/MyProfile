@@ -39,13 +39,19 @@ import {
   ChevronRight,
   UserCheck,
   BadgeAlert,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export default function Landing() {
   const navigate = useNavigate();
   const {
     currentUser,
+    login,
     logout,
+    registerPatient,
+    registerDoctor,
     selectedCity,
     setIsCityModalOpen,
     doctorsList,
@@ -62,8 +68,39 @@ export default function Landing() {
 
   // In-page Inspection Modals (Keep user on landing page for complete info!)
   const [selectedDoctorModal, setSelectedDoctorModal] = useState(null);
+  const [doctorModalTab, setDoctorModalTab] = useState('overview'); // 'overview' | 'schedule' | 'reviews'
   const [selectedHospitalModal, setSelectedHospitalModal] = useState(null);
   const [authRequiredModal, setAuthRequiredModal] = useState({ open: false, doctor: null });
+
+  // Interactive In-Page Auth Modals (Requested by user)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+
+  // Auth Form State inside Modal
+  const [loginRoleTab, setLoginRoleTab] = useState('patient'); // 'patient' | 'doctor' | 'admin'
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('••••••••');
+
+  const [signupRoleTab, setSignupRoleTab] = useState('patient'); // 'patient' | 'doctor'
+  const [signupStep, setSignupStep] = useState('form'); // 'form' | 'otp'
+  const [signupName, setSignupName] = useState('');
+  const [signupPhone, setSignupPhone] = useState('+92 300 4567890');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupCity, setSignupCity] = useState('Lahore');
+  const [signupOtp, setSignupOtp] = useState('');
+  const simulatedOtp = '8492';
+
+  const [docSignupForm, setDocSignupForm] = useState({
+    name: 'Dr. Tariq Jamil',
+    specialty: 'Cardiologist',
+    pmdcNumber: '58190-P',
+    qualifications: 'MBBS, FCPS (Cardiology)',
+    hospitalName: 'Doctors Hospital & Medical Centre',
+    videoFee: 2000,
+    inClinicFee: 2500,
+    city: 'Lahore',
+    applicationNote: 'King Edward Medical University alumnus with 6 years post-fellowship clinical practice.',
+  });
 
   // Verified Doctors (Active PMDC approved)
   const activeDoctors = useMemo(() => {
@@ -126,6 +163,45 @@ export default function Landing() {
     }
   };
 
+  // Handle In-Modal Login
+  const handleModalLogin = (roleOrSpecific) => {
+    login(roleOrSpecific || loginRoleTab);
+    setIsLoginModalOpen(false);
+    if ((roleOrSpecific || loginRoleTab) === 'patient') navigate('/patient');
+    else if ((roleOrSpecific || loginRoleTab) === 'doctor') navigate('/doctor');
+    else if ((roleOrSpecific || loginRoleTab) === 'admin') navigate('/admin');
+  };
+
+  // Handle Patient OTP Verification & Activation
+  const handleVerifyOtp = (e) => {
+    e.preventDefault();
+    if (signupOtp !== simulatedOtp && signupOtp !== '1234') {
+      showToast('Invalid verification code. Please enter 8492.', 'error');
+      return;
+    }
+
+    const createdPatient = registerPatient({
+      name: signupName || 'Ayesha Raza',
+      phone: signupPhone || '+92 300 9876543',
+      email: signupEmail || 'ayesha.raza@example.com',
+      city: signupCity || 'Lahore',
+    });
+
+    setIsSignupModalOpen(false);
+    showToast(`Mobile verified! Welcome, ${createdPatient.name}.`, 'success');
+    navigate('/patient');
+  };
+
+  // Handle Clinician Application in Modal
+  const handleDoctorSignup = (e) => {
+    e.preventDefault();
+    const createdDoc = registerDoctor(docSignupForm);
+    login(createdDoc);
+    setIsSignupModalOpen(false);
+    showToast('Clinician application submitted! Awaiting PMDC verification by Admin.', 'success');
+    navigate('/doctor');
+  };
+
   // FAQs Data
   const FAQS = [
     {
@@ -153,13 +229,13 @@ export default function Landing() {
   return (
     <div style={{ backgroundColor: 'var(--canvas-bg)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* =========================================================================
-          TOP NAVIGATION BAR (CONSUMER PATIENT FOCUS - NO EXPOSED ADMIN)
+          TOP NAVIGATION BAR (CONSUMER PATIENT FOCUS + ACCESSIBLE ADMIN ACCESS)
          ========================================================================= */}
       <header
         style={{
           backgroundColor: 'var(--forest-800)',
           color: '#FFFFFF',
-          padding: '16px 40px',
+          padding: '16px 48px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -183,7 +259,7 @@ export default function Landing() {
         </div>
 
         {/* Center Nav Links: Keep user on landing page with smooth scroll & info anchors */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '26px' }}>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <button
             type="button"
             onClick={() => scrollToSection('doctors')}
@@ -243,63 +319,78 @@ export default function Landing() {
           >
             FAQ
           </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/signup?role=doctor')}
-            style={{
-              color: 'var(--lime-accent)',
-              fontSize: '13px',
-              fontWeight: '700',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-pill)',
-              backgroundColor: 'rgba(197, 225, 165, 0.12)',
-              border: '1px solid rgba(197, 225, 165, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <Stethoscope size={13} />
-            <span>Join as Clinician ↗</span>
-          </button>
         </nav>
 
-        {/* Right CTA Group */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Right CTA Group (Prominent Admin & Auth Buttons) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* City Selector Pill */}
           <button
             type="button"
             className="city-pill-btn"
-            style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#FFF', border: '1px solid rgba(255, 255, 255, 0.2)' }}
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#FFF', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '7px 12px', fontSize: '12.5px' }}
             onClick={() => setIsCityModalOpen(true)}
           >
-            <MapPin size={14} color="var(--lime-accent)" />
+            <MapPin size={13} color="var(--lime-accent)" />
             <span>{selectedCity.name}</span>
-            <span style={{ fontSize: '10px', opacity: 0.7 }}>▼</span>
+            <span style={{ fontSize: '9px', opacity: 0.7 }}>▼</span>
+          </button>
+
+          {/* PROMINENT ADMIN CONSOLE ACCESS BUTTON (Clear & Immediately Available) */}
+          <button
+            type="button"
+            onClick={() => {
+              setLoginRoleTab('admin');
+              setIsLoginModalOpen(true);
+            }}
+            style={{
+              color: '#FFFFFF',
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              padding: '7px 14px',
+              borderRadius: 'var(--radius-pill)',
+              fontSize: '12px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.22)';
+              e.currentTarget.style.borderColor = 'var(--lime-accent)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+            }}
+            title="Hospital Operations & Regulatory Staff Console"
+          >
+            <ShieldCheck size={14} color="var(--lime-accent)" />
+            <span>Admin Portal</span>
           </button>
 
           {/* User State: If logged in, show Quick Portal link. If guest, show Sign In & Register */}
           {currentUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
                 className="btn-lime-pill"
-                style={{ padding: '8px 18px', fontSize: '13px' }}
+                style={{ padding: '7px 16px', fontSize: '12.5px' }}
                 onClick={() => {
                   if (currentUser.role === 'patient') navigate('/patient');
                   else if (currentUser.role === 'doctor') navigate('/doctor');
                   else if (currentUser.role === 'admin') navigate('/admin');
                 }}
               >
-                <UserCheck size={15} />
+                <UserCheck size={14} />
                 <span>My Portal ({currentUser.name?.split(' ')[0]})</span>
               </button>
 
               <button
                 type="button"
                 className="btn-white-capsule"
-                style={{ padding: '8px 14px', fontSize: '12px', color: '#991B1B' }}
+                style={{ padding: '7px 12px', fontSize: '12px', color: '#991B1B' }}
                 onClick={logout}
               >
                 Sign Out
@@ -310,20 +401,27 @@ export default function Landing() {
               <button
                 type="button"
                 className="btn-white-capsule"
-                style={{ padding: '8px 18px', fontSize: '13px' }}
-                onClick={() => navigate('/login')}
+                style={{ padding: '7px 16px', fontSize: '12.5px' }}
+                onClick={() => {
+                  setLoginRoleTab('patient');
+                  setIsLoginModalOpen(true);
+                }}
               >
-                <LogIn size={14} />
+                <LogIn size={13} />
                 <span>Sign In</span>
               </button>
 
               <button
                 type="button"
                 className="btn-lime-pill"
-                style={{ padding: '8px 20px', fontSize: '13px' }}
-                onClick={() => navigate('/signup')}
+                style={{ padding: '7px 18px', fontSize: '12.5px' }}
+                onClick={() => {
+                  setSignupRoleTab('patient');
+                  setSignupStep('form');
+                  setIsSignupModalOpen(true);
+                }}
               >
-                <UserPlus size={14} />
+                <UserPlus size={13} />
                 <span>Create Account</span>
               </button>
             </div>
@@ -331,12 +429,12 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Main Content Body */}
-      <main style={{ flex: 1, maxWidth: '1280px', width: '100%', margin: '0 auto', padding: '24px 32px 64px 32px' }}>
+      {/* Main Content Body (Expansive 1440px Width for Flawless Fit) */}
+      <main style={{ flex: 1, maxWidth: '1440px', width: '100%', margin: '0 auto', padding: '24px 40px 64px 40px', boxSizing: 'border-box' }}>
         {/* =========================================================================
-            SECTION 1: HERO CARD (EXACT CANVA DESIGN + OLADOC SEARCH)
+            SECTION 1: HERO CARD (WIDE CINEMATIC CANVA DESIGN - FITS SCREEN WIDTH)
            ========================================================================= */}
-        <section id="hero" className="canva-hero-card" style={{ marginBottom: '40px' }}>
+        <section id="hero" className="canva-hero-card">
           {/* Geometric 8-Point Starburst Watermark from Canva */}
           <svg
             className="canva-starburst"
@@ -367,7 +465,7 @@ export default function Landing() {
           </p>
 
           {/* Dual-Pill Interactive Search Bar */}
-          <div style={{ maxWidth: '820px', width: '100%', position: 'relative', marginBottom: '24px' }}>
+          <div style={{ maxWidth: '860px', width: '100%', position: 'relative', marginBottom: '24px' }}>
             <div className="oladoc-dual-search">
               {/* City Selector Trigger */}
               <div className="search-city-trigger" onClick={() => setIsCityModalOpen(true)}>
@@ -479,44 +577,44 @@ export default function Landing() {
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '16px',
-              marginTop: '40px',
+              gap: '24px',
+              marginTop: '44px',
               paddingTop: '28px',
               borderTop: '1px solid rgba(255, 255, 255, 0.12)',
             }}
           >
             <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', fontWeight: '700', color: 'var(--lime-accent)' }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', fontWeight: '700', color: 'var(--lime-accent)' }}>
                 500+
               </div>
-              <div style={{ fontSize: '12.5px', color: 'var(--text-white-muted)', marginTop: '2px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-white-muted)', marginTop: '2px' }}>
                 PMDC-Verified Doctors
               </div>
             </div>
 
             <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', fontWeight: '700', color: 'var(--lime-accent)' }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', fontWeight: '700', color: 'var(--lime-accent)' }}>
                 150,000+
               </div>
-              <div style={{ fontSize: '12.5px', color: 'var(--text-white-muted)', marginTop: '2px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-white-muted)', marginTop: '2px' }}>
                 Successful Consultations
               </div>
             </div>
 
             <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', fontWeight: '700', color: 'var(--lime-accent)' }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', fontWeight: '700', color: 'var(--lime-accent)' }}>
                 18+
               </div>
-              <div style={{ fontSize: '12.5px', color: 'var(--text-white-muted)', marginTop: '2px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-white-muted)', marginTop: '2px' }}>
                 Tertiary Hospital Partners
               </div>
             </div>
 
             <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', fontWeight: '700', color: 'var(--lime-accent)' }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', fontWeight: '700', color: 'var(--lime-accent)' }}>
                 4.9 ★
               </div>
-              <div style={{ fontSize: '12.5px', color: 'var(--text-white-muted)', marginTop: '2px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-white-muted)', marginTop: '2px' }}>
                 Patient Satisfaction Score
               </div>
             </div>
@@ -860,7 +958,10 @@ export default function Landing() {
                     type="button"
                     className="btn-white-capsule"
                     style={{ padding: '9px 12px', fontSize: '12px', border: '1px solid var(--border-strong)' }}
-                    onClick={() => setSelectedDoctorModal(doc)}
+                    onClick={() => {
+                      setSelectedDoctorModal(doc);
+                      setDoctorModalTab('overview');
+                    }}
                   >
                     <span>View Credentials</span>
                   </button>
@@ -995,27 +1096,27 @@ export default function Landing() {
             marginBottom: '56px',
             backgroundColor: 'var(--forest-800)',
             color: '#FFFFFF',
-            borderRadius: '24px',
-            padding: '48px',
+            borderRadius: '28px',
+            padding: '56px',
             position: 'relative',
             overflow: 'hidden',
           }}
         >
-          <div style={{ maxWidth: '640px', position: 'relative', zIndex: 2 }}>
+          <div style={{ maxWidth: '720px', position: 'relative', zIndex: 2 }}>
             <div className="hero-pill-badge" style={{ marginBottom: '16px' }}>
               <Video size={13} />
               <span>OFFICIAL PMDC TELEHEALTH PLATFORM</span>
             </div>
 
-            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', margin: '0 0 14px 0', lineHeight: '1.2' }}>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '34px', margin: '0 0 14px 0', lineHeight: '1.2' }}>
               Instant Video Consultations with Top Doctors across Pakistan
             </h2>
 
-            <p style={{ fontSize: '14.5px', color: 'var(--text-white-muted)', margin: '0 0 28px 0', lineHeight: '1.6' }}>
+            <p style={{ fontSize: '15px', color: 'var(--text-white-muted)', margin: '0 0 28px 0', lineHeight: '1.6' }}>
               No matter where you are in Pakistan—from small towns to major metropolitan centers—consult senior professors and specialists via encrypted HD video.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '32px' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                 <CheckCircle2 size={18} color="var(--lime-accent)" style={{ flexShrink: 0, marginTop: '2px' }} />
                 <div>
@@ -1252,7 +1353,7 @@ export default function Landing() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '900px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '960px' }}>
             {FAQS.map((faq, idx) => {
               const isOpen = openFaqIndex === idx;
               return (
@@ -1303,8 +1404,8 @@ export default function Landing() {
           style={{
             backgroundColor: 'var(--forest-800)',
             color: '#FFFFFF',
-            borderRadius: '24px',
-            padding: '40px 48px',
+            borderRadius: '28px',
+            padding: '48px 56px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -1312,14 +1413,14 @@ export default function Landing() {
             gap: '24px',
           }}
         >
-          <div style={{ maxWidth: '640px' }}>
+          <div style={{ maxWidth: '680px' }}>
             <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '1px', color: 'var(--lime-accent)', textTransform: 'uppercase' }}>
               JOIN THE MEDCONNECT CLINICIAN NETWORK
             </span>
-            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', margin: '6px 0 10px 0' }}>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '30px', margin: '6px 0 10px 0' }}>
               Are you a qualified medical practitioner in Pakistan?
             </h2>
-            <p style={{ fontSize: '13.5px', color: 'var(--text-white-muted)', margin: 0, lineHeight: '1.6' }}>
+            <p style={{ fontSize: '14px', color: 'var(--text-white-muted)', margin: 0, lineHeight: '1.6' }}>
               Expand your clinical consultation reach, manage in-clinic hospital timetables, and consult patients across Pakistan. Submit your PMDC license number for prompt verification by our operations team.
             </p>
           </div>
@@ -1328,7 +1429,10 @@ export default function Landing() {
             type="button"
             className="btn-lime-pill"
             style={{ padding: '14px 28px', fontSize: '14px' }}
-            onClick={() => navigate('/signup?role=doctor')}
+            onClick={() => {
+              setSignupRoleTab('doctor');
+              setIsSignupModalOpen(true);
+            }}
           >
             <span>Apply as a Doctor</span>
             <ArrowRight size={17} />
@@ -1343,14 +1447,14 @@ export default function Landing() {
         style={{
           backgroundColor: '#FFFFFF',
           borderTop: '1px solid var(--border-subtle)',
-          padding: '48px 40px 28px 40px',
+          padding: '48px 48px 28px 48px',
           marginTop: 'auto',
           fontSize: '13px',
           color: 'var(--text-muted)',
         }}
       >
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '32px', marginBottom: '36px' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '36px', marginBottom: '36px' }}>
             {/* Col 1: Brand Info */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
@@ -1396,29 +1500,51 @@ export default function Landing() {
             {/* Col 4: Clinician Access */}
             <div>
               <h4 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', marginBottom: '12px', textTransform: 'uppercase' }}>
-                Clinicians
+                Clinicians & Staff
               </h4>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px' }}>
                 <li>
-                  <button type="button" onClick={() => navigate('/signup?role=doctor')} style={{ color: 'var(--forest-800)', fontWeight: '700' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignupRoleTab('doctor');
+                      setIsSignupModalOpen(true);
+                    }}
+                    style={{ color: 'var(--forest-800)', fontWeight: '700' }}
+                  >
                     Join as Clinician ↗
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => navigate('/login?role=doctor')} style={{ color: 'var(--text-muted)' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginRoleTab('doctor');
+                      setIsLoginModalOpen(true);
+                    }}
+                    style={{ color: 'var(--text-muted)' }}
+                  >
                     Doctor Portal Login
                   </button>
                 </li>
                 <li>
-                  <button type="button" onClick={() => scrollToSection('telehealth')} style={{ color: 'var(--text-muted)' }}>
-                    Telehealth Guidelines
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginRoleTab('admin');
+                      setIsLoginModalOpen(true);
+                    }}
+                    style={{ color: 'var(--forest-800)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <ShieldCheck size={13} />
+                    <span>Operations Admin Portal</span>
                   </button>
                 </li>
               </ul>
             </div>
           </div>
 
-          {/* Bottom Bar: Copyright + Discreet Staff Gateway */}
+          {/* Bottom Bar: Copyright + Staff Gateway */}
           <div
             style={{
               paddingTop: '20px',
@@ -1435,26 +1561,24 @@ export default function Landing() {
               © 2026 MedConnect Pakistan Healthcare Platform. Designed following Oladoc flow & Canva specifications.
             </div>
 
-            {/* Discreet Staff & Admin Access: Hidden from normal patient browsing, tucked into staff legal footer */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <button
                 type="button"
-                onClick={() => navigate('/login?staff=true&role=admin')}
+                onClick={() => {
+                  setLoginRoleTab('admin');
+                  setIsLoginModalOpen(true);
+                }}
                 style={{
-                  color: 'var(--text-faint)',
-                  fontSize: '11px',
+                  color: 'var(--forest-800)',
+                  fontSize: '11.5px',
+                  fontWeight: '700',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
-                  textDecoration: 'none',
-                  transition: 'color 0.2s',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--forest-800)')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-faint)')}
-                title="Restricted Hospital Administration Portal"
               >
-                <Lock size={11} />
-                <span>Hospital Staff & Operations Admin Gateway</span>
+                <Lock size={12} />
+                <span>Hospital Operations & Regulatory Admin Gateway</span>
               </button>
             </div>
           </div>
@@ -1462,317 +1586,976 @@ export default function Landing() {
       </footer>
 
       {/* =========================================================================
-          INTERACTIVE MODAL 1: DOCTOR CREDENTIALS & PROFILE MODAL (ON LANDING PAGE)
+          INTERACTIVE MODAL 1: SIGN IN / LOGIN MODAL (RICH BACKGROUND UI)
+         ========================================================================= */}
+      {isLoginModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsLoginModalOpen(false)}>
+          <div
+            className="interactive-modal-card"
+            style={{ maxWidth: '540px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header with Visual Tint & Starburst watermark */}
+            <div className="modal-interactive-header">
+              <div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    color: loginRoleTab === 'admin' ? '#991B1B' : 'var(--forest-700)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                  }}
+                >
+                  {loginRoleTab === 'admin' ? '🛡️ OPERATIONS CONSOLE' : '🏥 MEDCONNECT ACCESS'}
+                </span>
+                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', margin: '4px 0 0 0', color: 'var(--text-main)' }}>
+                  {loginRoleTab === 'admin' ? 'Hospital Administration Sign In' : 'Sign in to MedConnect'}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setIsLoginModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-interactive-body">
+              {/* Role Selector Tabs (Patient, Doctor, Admin) */}
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', backgroundColor: 'var(--canvas-bg)', padding: '4px', borderRadius: 'var(--radius-pill)' }}>
+                <button
+                  type="button"
+                  className={`modal-tab-pill ${loginRoleTab === 'patient' ? 'active' : ''}`}
+                  style={{ flex: 1 }}
+                  onClick={() => setLoginRoleTab('patient')}
+                >
+                  Patient
+                </button>
+
+                <button
+                  type="button"
+                  className={`modal-tab-pill ${loginRoleTab === 'doctor' ? 'active' : ''}`}
+                  style={{ flex: 1 }}
+                  onClick={() => setLoginRoleTab('doctor')}
+                >
+                  Doctor
+                </button>
+
+                <button
+                  type="button"
+                  className={`modal-tab-pill ${loginRoleTab === 'admin' ? 'active' : ''}`}
+                  style={{ flex: 1 }}
+                  onClick={() => setLoginRoleTab('admin')}
+                >
+                  🛡️ Admin
+                </button>
+              </div>
+
+              {/* Admin Notice if Admin Tab Active */}
+              {loginRoleTab === 'admin' && (
+                <div
+                  style={{
+                    backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                    border: '1.5px solid rgba(220, 38, 38, 0.25)',
+                    borderRadius: '14px',
+                    padding: '12px 14px',
+                    marginBottom: '18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}
+                >
+                  <Lock size={18} color="#DC2626" />
+                  <div style={{ fontSize: '11.5px', color: '#7F1D1D', lineHeight: '1.4' }}>
+                    <b>Hospital Operations Gateway:</b> Access doctor approvals, clinic facility management, patient records, and real-time audit feed.
+                  </div>
+                </div>
+              )}
+
+              {/* Quick 1-Click Demo Profiles */}
+              <div
+                style={{
+                  backgroundColor: 'var(--canvas-bg)',
+                  borderRadius: '16px',
+                  padding: '14px',
+                  marginBottom: '20px',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                <div style={{ fontSize: '10.5px', fontWeight: '800', color: 'var(--forest-700)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                  ⚡ ONE-CLICK DEMO SIGN-IN
+                </div>
+                {loginRoleTab === 'admin' ? (
+                  <button
+                    type="button"
+                    className="btn-lime-pill"
+                    style={{ width: '100%', padding: '10px 14px', fontSize: '12.5px', justifyContent: 'center' }}
+                    onClick={() => handleModalLogin('admin')}
+                  >
+                    <ShieldCheck size={16} />
+                    <span>Enter as Operations Administrator</span>
+                  </button>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn-white-capsule"
+                      style={{ border: '1px solid var(--border-strong)', fontSize: '11px', padding: '8px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => handleModalLogin('patient')}
+                    >
+                      <Users size={13} color="var(--forest-800)" />
+                      <span>Alex Khan (Patient)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-white-capsule"
+                      style={{ border: '1px solid var(--border-strong)', fontSize: '11px', padding: '8px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => handleModalLogin('doctor')}
+                    >
+                      <Stethoscope size={13} color="var(--forest-800)" />
+                      <span>Dr. Maya (Doctor)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Standard Email/Password Form */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleModalLogin(loginRoleTab);
+                }}
+              >
+                <div className="form-group">
+                  <label className="form-label">Email or Mobile Number</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder={
+                      loginRoleTab === 'admin'
+                        ? 'admin@medconnect.pk'
+                        : loginRoleTab === 'doctor'
+                        ? 'doctor@medconnect.pk'
+                        : 'patient@medconnect.pk'
+                    }
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Password</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-lime-pill"
+                  style={{ width: '100%', padding: '13px', fontSize: '13.5px', marginTop: '4px' }}
+                >
+                  <span>Sign in as {loginRoleTab.toUpperCase()}</span>
+                  <ArrowRight size={15} />
+                </button>
+              </form>
+
+              {/* Modal Switch to Signup */}
+              <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', textAlign: 'center', fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                Don't have an account yet?{' '}
+                <button
+                  type="button"
+                  style={{ color: 'var(--forest-800)', fontWeight: '700', textDecoration: 'underline' }}
+                  onClick={() => {
+                    setIsLoginModalOpen(false);
+                    setSignupRoleTab('patient');
+                    setSignupStep('form');
+                    setIsSignupModalOpen(true);
+                  }}
+                >
+                  Create Verified Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          INTERACTIVE MODAL 2: SIGN UP / REGISTRATION MODAL (WITH SMS OTP)
+         ========================================================================= */}
+      {isSignupModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsSignupModalOpen(false)}>
+          <div
+            className="interactive-modal-card"
+            style={{ maxWidth: '580px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-interactive-header">
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--forest-700)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  MEDCONNECT HEALTHCARE MEMBERSHIP
+                </span>
+                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', margin: '4px 0 0 0', color: 'var(--text-main)' }}>
+                  {signupRoleTab === 'doctor' ? 'Clinician PMDC Application' : 'Create Verified Patient Account'}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setIsSignupModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-interactive-body">
+              {/* Role Toggle: Patient vs Clinician */}
+              {signupStep !== 'otp' && (
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', backgroundColor: 'var(--canvas-bg)', padding: '4px', borderRadius: 'var(--radius-pill)' }}>
+                  <button
+                    type="button"
+                    className={`modal-tab-pill ${signupRoleTab === 'patient' ? 'active' : ''}`}
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      setSignupRoleTab('patient');
+                      setSignupStep('form');
+                    }}
+                  >
+                    Patient Account (Instant SMS Verified)
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`modal-tab-pill ${signupRoleTab === 'doctor' ? 'active' : ''}`}
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      setSignupRoleTab('doctor');
+                      setSignupStep('form');
+                    }}
+                  >
+                    Clinician Application (PMDC)
+                  </button>
+                </div>
+              )}
+
+              {/* Case 1: Patient OTP Verification Step */}
+              {signupRoleTab === 'patient' && signupStep === 'otp' ? (
+                <form onSubmit={handleVerifyOtp}>
+                  <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                    <div
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(197, 225, 165, 0.4)',
+                        color: 'var(--forest-800)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        margin: '0 auto 14px auto',
+                      }}
+                    >
+                      <ShieldCheck size={26} />
+                    </div>
+
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '0 0 6px 0', color: 'var(--text-main)' }}>
+                      Verify Mobile Number
+                    </h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 18px 0', lineHeight: '1.5' }}>
+                      To issue your official medical record number (MRN), enter the 4-digit SMS verification code sent to{' '}
+                      <b style={{ color: 'var(--forest-800)' }}>{signupPhone}</b>.
+                    </p>
+
+                    <div
+                      style={{
+                        backgroundColor: 'var(--canvas-bg)',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        marginBottom: '18px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        border: '1px dashed var(--border-strong)',
+                      }}
+                    >
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        SMS Code: <b style={{ color: 'var(--forest-800)', fontSize: '14px', letterSpacing: '2px' }}>{simulatedOtp}</b>
+                      </span>
+                      <button
+                        type="button"
+                        style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--forest-700)', textDecoration: 'underline' }}
+                        onClick={() => setSignupOtp(simulatedOtp)}
+                      >
+                        Auto-Fill {simulatedOtp}
+                      </button>
+                    </div>
+
+                    <div className="form-group">
+                      <input
+                        type="text"
+                        maxLength={4}
+                        placeholder="• • • •"
+                        value={signupOtp}
+                        onChange={(e) => setSignupOtp(e.target.value)}
+                        style={{
+                          width: '180px',
+                          margin: '0 auto',
+                          textAlign: 'center',
+                          fontSize: '24px',
+                          letterSpacing: '8px',
+                          fontWeight: '800',
+                          padding: '10px',
+                          borderRadius: '12px',
+                          border: '2px solid var(--forest-800)',
+                          backgroundColor: '#FFFFFF',
+                        }}
+                        required
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="btn-lime-pill"
+                      style={{ width: '100%', padding: '13px', marginTop: '14px', fontSize: '13.5px' }}
+                    >
+                      <span>Verify & Enter Patient Portal</span>
+                      <ArrowRight size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      style={{ marginTop: '14px', fontSize: '12px', color: 'var(--text-muted)' }}
+                      onClick={() => setSignupStep('form')}
+                    >
+                      ← Edit details
+                    </button>
+                  </div>
+                </form>
+              ) : signupRoleTab === 'patient' ? (
+                /* Case 2: Patient Registration Form */
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setSignupStep('otp');
+                    showToast(`SMS verification dispatched to ${signupPhone}. Code: ${simulatedOtp}`, 'info');
+                  }}
+                >
+                  <div className="form-group">
+                    <label className="form-label">Full Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Ayesha Raza"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-group">
+                      <label className="form-label">Mobile Number</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={signupPhone}
+                        onChange={(e) => setSignupPhone(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">City</label>
+                      <select className="form-select" value={signupCity} onChange={(e) => setSignupCity(e.target.value)}>
+                        <option value="Lahore">Lahore</option>
+                        <option value="Karachi">Karachi</option>
+                        <option value="Islamabad">Islamabad</option>
+                        <option value="Rawalpindi">Rawalpindi</option>
+                        <option value="Faisalabad">Faisalabad</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Email Address</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      placeholder="name@example.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn-lime-pill"
+                    style={{ width: '100%', padding: '13px', fontSize: '13.5px', marginTop: '6px' }}
+                  >
+                    <span>Proceed to Mobile Verification</span>
+                    <ArrowRight size={15} />
+                  </button>
+                </form>
+              ) : (
+                /* Case 3: Clinician PMDC Registration Form */
+                <form onSubmit={handleDoctorSignup}>
+                  <div className="form-group">
+                    <label className="form-label">Doctor Full Name & Title</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={docSignupForm.name}
+                      onChange={(e) => setDocSignupForm({ ...docSignupForm, name: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-group">
+                      <label className="form-label">Specialty</label>
+                      <select
+                        className="form-select"
+                        value={docSignupForm.specialty}
+                        onChange={(e) => setDocSignupForm({ ...docSignupForm, specialty: e.target.value })}
+                      >
+                        <option value="Cardiologist">Cardiologist</option>
+                        <option value="Dermatologist">Dermatologist</option>
+                        <option value="General Physician">General Physician</option>
+                        <option value="Gynecologist">Gynecologist</option>
+                        <option value="Pediatrician">Pediatrician</option>
+                        <option value="Orthopedic Surgeon">Orthopedic Surgeon</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">PMDC License #</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. 55421-P"
+                        value={docSignupForm.pmdcNumber}
+                        onChange={(e) => setDocSignupForm({ ...docSignupForm, pmdcNumber: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Qualifications (Degrees & Fellowships)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={docSignupForm.qualifications}
+                      onChange={(e) => setDocSignupForm({ ...docSignupForm, qualifications: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-group">
+                      <label className="form-label">Hospital Affiliation</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={docSignupForm.hospitalName}
+                        onChange={(e) => setDocSignupForm({ ...docSignupForm, hospitalName: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Consultation Fee (PKR)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={docSignupForm.inClinicFee}
+                        onChange={(e) => setDocSignupForm({ ...docSignupForm, inClinicFee: Number(e.target.value) })}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      backgroundColor: 'var(--canvas-bg)',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      fontSize: '12px',
+                      color: 'var(--text-muted)',
+                      marginBottom: '18px',
+                    }}
+                  >
+                    ℹ️ <i>Submitted applications are reviewed and verified by MedConnect operations administrators with PMDC records before going live.</i>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn-lime-pill"
+                    style={{ width: '100%', padding: '13px', fontSize: '13.5px' }}
+                  >
+                    <span>Submit Application for Review</span>
+                    <ArrowRight size={15} />
+                  </button>
+                </form>
+              )}
+
+              {/* Bottom Switch to Login */}
+              <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', textAlign: 'center', fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                Already registered with MedConnect?{' '}
+                <button
+                  type="button"
+                  style={{ color: 'var(--forest-800)', fontWeight: '700', textDecoration: 'underline' }}
+                  onClick={() => {
+                    setIsSignupModalOpen(false);
+                    setIsLoginModalOpen(true);
+                  }}
+                >
+                  Sign In
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          INTERACTIVE MODAL 3: DOCTOR CREDENTIALS & PROFILE MODAL (PROPER DIALOG)
          ========================================================================= */}
       {selectedDoctorModal && (
         <div className="modal-backdrop" onClick={() => setSelectedDoctorModal(null)}>
           <div
-            className="modal-box"
-            style={{ maxWidth: '640px', width: '92%', maxHeight: '90vh', overflowY: 'auto' }}
+            className="interactive-modal-card"
+            style={{ maxWidth: '680px' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+            {/* Header with Visual Tint */}
+            <div className="modal-interactive-header">
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                 <div
                   style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '16px',
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '18px',
                     backgroundColor: selectedDoctorModal.photoColor || 'var(--forest-800)',
                     color: '#FFF',
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: '20px',
+                    fontSize: '22px',
                     fontWeight: '800',
+                    flexShrink: 0,
                   }}
                 >
                   {selectedDoctorModal.initials}
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '18px', fontWeight: '800', margin: '0 0 2px 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        color: '#15803D',
+                        backgroundColor: '#DCFCE7',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-pill)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <ShieldCheck size={12} />
+                      <span>PMDC #{selectedDoctorModal.pmdcNumber}</span>
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#B45309', fontWeight: '700' }}>
+                      ★ {selectedDoctorModal.rating || 4.9} ({selectedDoctorModal.reviewsCount || 120}+ reviews)
+                    </span>
+                  </div>
+
+                  <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
                     {selectedDoctorModal.name}
                   </h2>
                   <div style={{ fontSize: '13px', color: 'var(--forest-700)', fontWeight: '700' }}>
                     {selectedDoctorModal.specialty} · {selectedDoctorModal.city}
                   </div>
-                  <span
-                    style={{
-                      fontSize: '10.5px',
-                      fontWeight: '800',
-                      color: '#15803D',
-                      backgroundColor: '#DCFCE7',
-                      padding: '2px 8px',
-                      borderRadius: 'var(--radius-pill)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      marginTop: '4px',
-                    }}
-                  >
-                    <ShieldCheck size={12} />
-                    <span>Verified PMDC License #{selectedDoctorModal.pmdcNumber}</span>
-                  </span>
                 </div>
               </div>
 
               <button
                 type="button"
+                className="modal-close-icon-btn"
                 onClick={() => setSelectedDoctorModal(null)}
-                style={{ padding: '6px', color: 'var(--text-muted)' }}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Doctor Bio */}
-            <div style={{ marginBottom: '18px' }}>
-              <h4 style={{ fontSize: '12.5px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--forest-700)', marginBottom: '6px' }}>
-                About Clinician & Qualifications
-              </h4>
-              <p style={{ fontSize: '13px', color: 'var(--text-body)', lineHeight: '1.6', margin: 0 }}>
-                {selectedDoctorModal.bio || 'Consultant medical practitioner with extensive clinical experience across outpatient and inpatient care in Pakistan.'}
-              </p>
-              <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                <b>Degrees:</b> {selectedDoctorModal.qualifications} · <b>Clinical Experience:</b> {selectedDoctorModal.experience}
-              </div>
-            </div>
-
-            {/* Practice Timetables */}
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '12.5px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--forest-700)', marginBottom: '8px' }}>
-                Hospital OPD & Video Timetable
-              </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {selectedDoctorModal.practices?.map((p, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      backgroundColor: 'var(--canvas-bg)',
-                      padding: '12px 14px',
-                      borderRadius: '12px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      fontSize: '12.5px',
-                    }}
-                  >
-                    <div>
-                      <b>{p.hospital}</b>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{p.address}</div>
-                      <div style={{ color: 'var(--forest-700)', fontWeight: '600', marginTop: '2px' }}>
-                        ⏰ {p.days}: {p.timing}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Fee</span>
-                      <b style={{ color: 'var(--forest-800)', fontSize: '14px' }}>Rs. {p.fee?.toLocaleString()}</b>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Reviews Sample */}
-            {selectedDoctorModal.reviews?.length > 0 && (
-              <div style={{ marginBottom: '24px' }}>
-                <h4 style={{ fontSize: '12.5px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--forest-700)', marginBottom: '8px' }}>
-                  Verified Patient Feedback
-                </h4>
-                <div style={{ backgroundColor: 'var(--canvas-bg)', padding: '12px 14px', borderRadius: '12px', fontSize: '12.5px' }}>
-                  <div style={{ color: '#B45309', marginBottom: '4px' }}>{'★★★★★'}</div>
-                  <p style={{ margin: '0 0 6px 0', color: 'var(--text-body)', fontStyle: 'italic' }}>
-                    "{selectedDoctorModal.reviews[0].comment}"
-                  </p>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    — {selectedDoctorModal.reviews[0].author} ({selectedDoctorModal.reviews[0].treatment})
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Modal Bottom Actions */}
-            <div style={{ display: 'flex', gap: '10px' }}>
+            {/* Segmented Tabs Inside Doctor Modal */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', padding: '0 32px', backgroundColor: 'var(--canvas-bg)' }}>
               <button
                 type="button"
-                className="btn-white-capsule"
-                style={{ flex: 1, padding: '12px' }}
-                onClick={() => setSelectedDoctorModal(null)}
-              >
-                Close
-              </button>
-
-              <button
-                type="button"
-                className="btn-lime-pill"
-                style={{ flex: 2, padding: '12px' }}
-                onClick={() => {
-                  const doc = selectedDoctorModal;
-                  setSelectedDoctorModal(null);
-                  handleBookingClick(doc);
+                onClick={() => setDoctorModalTab('overview')}
+                style={{
+                  padding: '12px 16px',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  color: doctorModalTab === 'overview' ? 'var(--forest-800)' : 'var(--text-muted)',
+                  borderBottom: `2.5px solid ${doctorModalTab === 'overview' ? 'var(--forest-800)' : 'transparent'}`,
+                  cursor: 'pointer',
                 }}
               >
-                <span>Book with {selectedDoctorModal.name}</span>
-                <ArrowRight size={15} />
+                Overview & Credentials
               </button>
+
+              <button
+                type="button"
+                onClick={() => setDoctorModalTab('schedule')}
+                style={{
+                  padding: '12px 16px',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  color: doctorModalTab === 'schedule' ? 'var(--forest-800)' : 'var(--text-muted)',
+                  borderBottom: `2.5px solid ${doctorModalTab === 'schedule' ? 'var(--forest-800)' : 'transparent'}`,
+                  cursor: 'pointer',
+                }}
+              >
+                Hospital OPD & Fees
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDoctorModalTab('reviews')}
+                style={{
+                  padding: '12px 16px',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  color: doctorModalTab === 'reviews' ? 'var(--forest-800)' : 'var(--text-muted)',
+                  borderBottom: `2.5px solid ${doctorModalTab === 'reviews' ? 'var(--forest-800)' : 'transparent'}`,
+                  cursor: 'pointer',
+                }}
+              >
+                Patient Reviews ({selectedDoctorModal.reviews?.length || 1})
+              </button>
+            </div>
+
+            <div className="modal-interactive-body">
+              {doctorModalTab === 'overview' && (
+                <div>
+                  <h4 style={{ fontSize: '12.5px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--forest-700)', marginBottom: '8px' }}>
+                    Clinical Profile & Experience
+                  </h4>
+                  <p style={{ fontSize: '13.5px', color: 'var(--text-body)', lineHeight: '1.6', margin: '0 0 16px 0' }}>
+                    {selectedDoctorModal.bio || 'Consultant medical practitioner with extensive clinical experience across outpatient and inpatient care in Pakistan.'}
+                  </p>
+
+                  <div style={{ backgroundColor: 'var(--canvas-bg)', padding: '14px 18px', borderRadius: '14px', marginBottom: '16px' }}>
+                    <div style={{ fontSize: '12.5px', color: 'var(--text-main)', marginBottom: '6px' }}>
+                      <b>Postgraduate Qualifications:</b> {selectedDoctorModal.qualifications}
+                    </div>
+                    <div style={{ fontSize: '12.5px', color: 'var(--text-main)', marginBottom: '6px' }}>
+                      <b>Clinical Practice:</b> {selectedDoctorModal.experience} Experience in Pakistan
+                    </div>
+                    <div style={{ fontSize: '12.5px', color: 'var(--text-main)' }}>
+                      <b>PMDC Regulatory Status:</b> Validated & Active on PMDC Registry
+                    </div>
+                  </div>
+
+                  {selectedDoctorModal.services && (
+                    <div>
+                      <h4 style={{ fontSize: '12.5px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--forest-700)', marginBottom: '8px' }}>
+                        Specialized Treatments Offered
+                      </h4>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {selectedDoctorModal.services.map((s, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              backgroundColor: 'rgba(14, 56, 44, 0.06)',
+                              color: 'var(--forest-800)',
+                              fontSize: '11.5px',
+                              fontWeight: '700',
+                              padding: '4px 10px',
+                              borderRadius: 'var(--radius-pill)',
+                            }}
+                          >
+                            ✓ {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {doctorModalTab === 'schedule' && (
+                <div>
+                  <h4 style={{ fontSize: '12.5px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--forest-700)', marginBottom: '10px' }}>
+                    Active Hospital Locations & Timetable
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {selectedDoctorModal.practices?.map((p, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          backgroundColor: 'var(--canvas-bg)',
+                          padding: '14px 18px',
+                          borderRadius: '14px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                            {p.isVideo ? <Video size={15} color="var(--forest-700)" /> : <Building2 size={15} color="var(--forest-700)" />}
+                            <b style={{ fontSize: '13.5px' }}>{p.hospital}</b>
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '11.5px' }}>{p.address}</div>
+                          <div style={{ color: 'var(--forest-700)', fontWeight: '700', fontSize: '12px', marginTop: '4px' }}>
+                            ⏰ {p.days}: {p.timing}
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Fee</span>
+                          <b style={{ color: 'var(--forest-800)', fontSize: '16px' }}>Rs. {p.fee?.toLocaleString()}</b>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {doctorModalTab === 'reviews' && (
+                <div>
+                  <h4 style={{ fontSize: '12.5px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--forest-700)', marginBottom: '10px' }}>
+                    Patient Feedback & Verified Testimonials
+                  </h4>
+                  {selectedDoctorModal.reviews?.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {selectedDoctorModal.reviews.map((rev, i) => (
+                        <div key={i} style={{ backgroundColor: 'var(--canvas-bg)', padding: '14px 18px', borderRadius: '14px' }}>
+                          <div style={{ color: '#B45309', marginBottom: '4px', fontSize: '13px' }}>{'★★★★★'}</div>
+                          <p style={{ margin: '0 0 6px 0', color: 'var(--text-body)', fontStyle: 'italic', fontSize: '13px' }}>
+                            "{rev.comment}"
+                          </p>
+                          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                            <b>{rev.author}</b> · Treated for {rev.treatment} · {rev.date}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                      No reviews submitted yet for this specialist.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Modal Bottom Actions */}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+                <button
+                  type="button"
+                  className="btn-white-capsule"
+                  style={{ flex: 1, padding: '12px', border: '1px solid var(--border-strong)' }}
+                  onClick={() => setSelectedDoctorModal(null)}
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-lime-pill"
+                  style={{ flex: 2, padding: '12px' }}
+                  onClick={() => {
+                    const doc = selectedDoctorModal;
+                    setSelectedDoctorModal(null);
+                    handleBookingClick(doc);
+                  }}
+                >
+                  <span>Book Consultation Visit</span>
+                  <ArrowRight size={15} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* =========================================================================
-          INTERACTIVE MODAL 2: HOSPITAL FACILITY DETAILS (ON LANDING PAGE)
+          INTERACTIVE MODAL 4: HOSPITAL FACILITY DETAILS (PROPER DIALOG)
          ========================================================================= */}
       {selectedHospitalModal && (
         <div className="modal-backdrop" onClick={() => setSelectedHospitalModal(null)}>
           <div
-            className="modal-box"
-            style={{ maxWidth: '600px', width: '92%' }}
+            className="interactive-modal-card"
+            style={{ maxWidth: '620px' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
+            <div className="modal-interactive-header">
               <div>
                 <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--forest-700)', textTransform: 'uppercase' }}>
-                  {selectedHospitalModal.city} PARTNER HOSPITAL
+                  {selectedHospitalModal.city} TERTIARY MEDICAL CENTER
                 </span>
-                <h2 style={{ fontSize: '20px', fontWeight: '800', margin: '4px 0 0 0' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: '800', margin: '4px 0 0 0', color: 'var(--text-main)' }}>
                   {selectedHospitalModal.name}
                 </h2>
               </div>
+
               <button
                 type="button"
+                className="modal-close-icon-btn"
                 onClick={() => setSelectedHospitalModal(null)}
-                style={{ padding: '6px', color: 'var(--text-muted)' }}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <MapPin size={16} color="var(--forest-700)" />
-                <span>{selectedHospitalModal.address}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <Phone size={16} color="#DC2626" />
-                <span>Emergency Hotline: <b>{selectedHospitalModal.emergencyHelpline || selectedHospitalModal.phone}</b></span>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <Clock size={16} color="var(--forest-700)" />
-                <span>Timings: <b>{selectedHospitalModal.timings}</b></span>
-              </div>
-              {selectedHospitalModal.beds && (
+            <div className="modal-interactive-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <Building2 size={16} color="var(--forest-700)" />
-                  <span>Bed Capacity: <b>{selectedHospitalModal.beds}</b> · Active Specialists: <b>{selectedHospitalModal.activeDoctors}</b></span>
+                  <MapPin size={16} color="var(--forest-700)" />
+                  <span>{selectedHospitalModal.address}</span>
                 </div>
-              )}
-            </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <Phone size={16} color="#DC2626" />
+                  <span>24/7 Emergency Line: <b>{selectedHospitalModal.emergencyHelpline || selectedHospitalModal.phone}</b></span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <Clock size={16} color="var(--forest-700)" />
+                  <span>Timings: <b>{selectedHospitalModal.timings}</b></span>
+                </div>
+                {selectedHospitalModal.beds && (
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <Building2 size={16} color="var(--forest-700)" />
+                    <span>Capacity: <b>{selectedHospitalModal.beds}</b> · Active Clinicians: <b>{selectedHospitalModal.activeDoctors}</b></span>
+                  </div>
+                )}
+              </div>
 
-            <h4 style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--forest-700)', marginBottom: '8px' }}>
-              Available Clinical Departments
-            </h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '24px' }}>
-              {selectedHospitalModal.departments?.map((d, i) => (
-                <span
-                  key={i}
-                  style={{
-                    backgroundColor: 'var(--canvas-bg)',
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-pill)',
-                    fontSize: '11.5px',
-                    fontWeight: '700',
-                  }}
-                >
-                  {d}
-                </span>
-              ))}
-            </div>
+              <h4 style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--forest-700)', marginBottom: '8px' }}>
+                Key Clinical Specialties & Departments
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '24px' }}>
+                {selectedHospitalModal.departments?.map((d, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      backgroundColor: 'var(--canvas-bg)',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-pill)',
+                      fontSize: '11.5px',
+                      fontWeight: '700',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    ✓ {d}
+                  </span>
+                ))}
+              </div>
 
-            <button
-              type="button"
-              className="btn-lime-pill"
-              style={{ width: '100%', padding: '12px' }}
-              onClick={() => {
-                setSelectedHospitalModal(null);
-                setSearchQuery(selectedHospitalModal.name.split(' ')[0]);
-                scrollToSection('doctors');
-              }}
-            >
-              <span>View Specialists at this Hospital</span>
-              <ArrowRight size={15} />
-            </button>
+              <button
+                type="button"
+                className="btn-lime-pill"
+                style={{ width: '100%', padding: '13px' }}
+                onClick={() => {
+                  setSelectedHospitalModal(null);
+                  setSearchQuery(selectedHospitalModal.name.split(' ')[0]);
+                  scrollToSection('doctors');
+                }}
+              >
+                <span>Filter Doctors at this Facility</span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* =========================================================================
-          INTERACTIVE MODAL 3: AUTH REQUIRED MODAL (PROTECTING APPOINTMENT ENTRY)
+          INTERACTIVE MODAL 5: AUTH BARRIER REQUIRED PROMPT
          ========================================================================= */}
       {authRequiredModal.open && (
         <div className="modal-backdrop" onClick={() => setAuthRequiredModal({ open: false, doctor: null })}>
           <div
-            className="modal-box"
-            style={{ maxWidth: '480px', width: '92%', textAlign: 'center' }}
+            className="interactive-modal-card"
+            style={{ maxWidth: '480px', textAlign: 'center' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(197, 225, 165, 0.4)',
-                color: 'var(--forest-800)',
-                display: 'grid',
-                placeItems: 'center',
-                margin: '0 auto 16px auto',
-              }}
-            >
-              <ShieldCheck size={28} />
+            <div className="modal-interactive-header" style={{ justifyContent: 'center' }}>
+              <div style={{ textAlign: 'center', width: '100%' }}>
+                <div
+                  style={{
+                    width: '54px',
+                    height: '54px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(197, 225, 165, 0.4)',
+                    color: 'var(--forest-800)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    margin: '0 auto 10px auto',
+                  }}
+                >
+                  <ShieldCheck size={26} />
+                </div>
+                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', margin: 0 }}>
+                  Patient Verification Required
+                </h2>
+              </div>
             </div>
 
-            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', margin: '0 0 8px 0' }}>
-              Verified Patient Account Required
-            </h2>
+            <div className="modal-interactive-body" style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px 0', lineHeight: '1.5' }}>
+                To book an appointment with <b style={{ color: 'var(--forest-800)' }}>{authRequiredModal.doctor?.name}</b>, Pakistani healthcare regulations require an authentic, mobile-verified patient account so your Medical Record Number (MRN) and digital prescription can be issued.
+              </p>
 
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px 0', lineHeight: '1.5' }}>
-              In accordance with Pakistan healthcare regulations, booking an appointment with{' '}
-              <b style={{ color: 'var(--forest-800)' }}>{authRequiredModal.doctor?.name}</b> requires a valid, mobile-verified patient account so your official medical record number (MRN) and digital prescription can be issued securely.
-            </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-lime-pill"
+                  style={{ padding: '12px', fontSize: '13px' }}
+                  onClick={() => {
+                    setAuthRequiredModal({ open: false, doctor: null });
+                    setSignupRoleTab('patient');
+                    setSignupStep('form');
+                    setIsSignupModalOpen(true);
+                  }}
+                >
+                  <span>Create Verified Patient Account</span>
+                  <ArrowRight size={15} />
+                </button>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn-lime-pill"
-                style={{ padding: '12px', fontSize: '13.5px' }}
-                onClick={() => {
-                  const targetDoc = authRequiredModal.doctor;
-                  navigate(`/signup?redirect=${encodeURIComponent(`/book?doctorId=${targetDoc?.id}&type=clinic`)}`);
-                }}
-              >
-                <span>Create Verified Patient Account</span>
-                <ArrowRight size={15} />
-              </button>
+                <button
+                  type="button"
+                  className="btn-white-capsule"
+                  style={{ padding: '12px', fontSize: '13px', border: '1px solid var(--border-strong)' }}
+                  onClick={() => {
+                    setAuthRequiredModal({ open: false, doctor: null });
+                    setLoginRoleTab('patient');
+                    setIsLoginModalOpen(true);
+                  }}
+                >
+                  <LogIn size={14} />
+                  <span>Sign In to Existing Account</span>
+                </button>
 
-              <button
-                type="button"
-                className="btn-white-capsule"
-                style={{ padding: '12px', fontSize: '13.5px', border: '1px solid var(--border-strong)' }}
-                onClick={() => {
-                  const targetDoc = authRequiredModal.doctor;
-                  navigate(`/login?redirect=${encodeURIComponent(`/book?doctorId=${targetDoc?.id}&type=clinic`)}`);
-                }}
-              >
-                <LogIn size={15} />
-                <span>Sign In to Existing Account</span>
-              </button>
-
-              <button
-                type="button"
-                style={{ padding: '8px', fontSize: '12.5px', color: 'var(--text-muted)' }}
-                onClick={() => setAuthRequiredModal({ open: false, doctor: null })}
-              >
-                Continue Browsing Information
-              </button>
+                <button
+                  type="button"
+                  style={{ padding: '8px', fontSize: '12px', color: 'var(--text-muted)' }}
+                  onClick={() => setAuthRequiredModal({ open: false, doctor: null })}
+                >
+                  Continue Browsing Without Booking
+                </button>
+              </div>
             </div>
           </div>
         </div>
