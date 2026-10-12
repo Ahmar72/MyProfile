@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDemo } from '../../context/DemoContext';
 import { SPECIALTIES } from '../patient/data/pakistanMedicalData';
@@ -149,6 +149,65 @@ export default function Landing() {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  // Scroll Reveal & Focal Spotlight Sequence Observer
+  useEffect(() => {
+    const cards = document.querySelectorAll('.scroll-seq-card');
+    if (!cards.length) return;
+
+    // 1. Entrance animation observer: reveals cards in sequence with stagger
+    const entranceObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-revealed');
+          }
+        });
+      },
+      { root: null, rootMargin: '0px 0px -40px 0px', threshold: 0.08 }
+    );
+
+    cards.forEach((card, index) => {
+      card.style.transitionDelay = `${(index % 4) * 75}ms`;
+      entranceObserver.observe(card);
+    });
+
+    // 2. Focal sequence observer: as user scrolls down, focus on one card at a time in sequence
+    const handleScrollFocal = () => {
+      const windowHeight = window.innerHeight;
+      const focalZoneY = windowHeight * 0.45;
+      let closestCard = null;
+      let minDistance = Infinity;
+
+      cards.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        if (rect.bottom > 80 && rect.top < windowHeight - 80) {
+          const cardCenterY = rect.top + rect.height / 2;
+          const dist = Math.abs(cardCenterY - focalZoneY);
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestCard = card;
+          }
+        }
+      });
+
+      cards.forEach((card) => {
+        if (card === closestCard) {
+          card.classList.add('is-card-focal');
+        } else {
+          card.classList.remove('is-card-focal');
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScrollFocal, { passive: true });
+    handleScrollFocal();
+
+    return () => {
+      entranceObserver.disconnect();
+      window.removeEventListener('scroll', handleScrollFocal);
+    };
+  }, [filteredDoctors]);
 
   // Handle Booking Click with Auth Check
   const handleBookingClick = (doctor) => {
@@ -429,12 +488,11 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Main Content Body (Expansive 1440px Width for Flawless Fit) */}
-      <main style={{ flex: 1, maxWidth: '1440px', width: '100%', margin: '0 auto', padding: '24px 40px 64px 40px', boxSizing: 'border-box' }}>
-        {/* =========================================================================
-            SECTION 1: HERO CARD (WIDE CINEMATIC CANVA DESIGN - FITS SCREEN WIDTH)
-           ========================================================================= */}
-        <section id="hero" className="canva-hero-card">
+      {/* =========================================================================
+          SECTION 1: HERO CARD (FULL-BLEED SCREEN FIT FROM LEFT TO RIGHT)
+         ========================================================================= */}
+      <section id="hero" className="canva-hero-fullbleed">
+        <div className="hero-inner-container">
           {/* Geometric 8-Point Starburst Watermark from Canva */}
           <svg
             className="canva-starburst"
@@ -619,22 +677,28 @@ export default function Landing() {
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
+      {/* Main Content Body (Expansive 1440px Width for Below Sections) */}
+      <main style={{ flex: 1, maxWidth: '1440px', width: '100%', margin: '0 auto', padding: '0 40px 64px 40px', boxSizing: 'border-box' }}>
         {/* =========================================================================
             SECTION 2: PRIMARY HEALTHCARE SERVICES (OLADOC / MARHAM FLOW)
            ========================================================================= */}
         <section id="services" style={{ marginBottom: '56px' }}>
-          <div className="section-header-row">
+          <div className="section-header-row" style={{ marginBottom: '24px' }}>
             <div className="section-heading-wrap">
-              <h2>Healthcare Services at Your Fingertips</h2>
-              <p>Explore comprehensive clinical services designed for quick booking and trusted medical care</p>
+              <span className="section-eyebrow">✦ HEALTHCARE SERVICES</span>
+              <h2 className="section-main-heading">Healthcare Services at Your Fingertips</h2>
+              <p className="section-subheading">
+                Explore comprehensive clinical services designed for quick booking and trusted medical care
+              </p>
             </div>
           </div>
 
           <div className="services-grid">
             {/* Service 1: In-Clinic Visits */}
-            <div className="service-card" onClick={() => scrollToSection('doctors')}>
+            <div className="service-card scroll-seq-card" onClick={() => scrollToSection('doctors')}>
               <div className="service-icon-box">
                 <Building2 size={24} />
               </div>
@@ -649,7 +713,7 @@ export default function Landing() {
             </div>
 
             {/* Service 2: Video Consult (Highlighted) */}
-            <div className="service-card highlight" onClick={() => scrollToSection('telehealth')}>
+            <div className="service-card highlight scroll-seq-card" onClick={() => scrollToSection('telehealth')}>
               <div className="service-badge-live">
                 <span className="live-pulse-dot"></span>
                 <span>Instant 15-Min Response</span>
@@ -668,7 +732,7 @@ export default function Landing() {
             </div>
 
             {/* Service 3: Lab Test Sampling */}
-            <div className="service-card" onClick={() => scrollToSection('faq')}>
+            <div className="service-card scroll-seq-card" onClick={() => scrollToSection('faq')}>
               <div className="service-icon-box">
                 <Activity size={24} />
               </div>
@@ -683,7 +747,7 @@ export default function Landing() {
             </div>
 
             {/* Service 4: Chronic Disease Care */}
-            <div className="service-card" onClick={() => scrollToSection('specialties')}>
+            <div className="service-card scroll-seq-card" onClick={() => scrollToSection('specialties')}>
               <div className="service-icon-box">
                 <HeartPulse size={24} />
               </div>
@@ -703,10 +767,11 @@ export default function Landing() {
             SECTION 3: MEDICAL SPECIALTIES DIRECTORY (INTERACTIVE IN-PAGE FILTER)
            ========================================================================= */}
         <section id="specialties" style={{ marginBottom: '56px' }}>
-          <div className="section-header-row">
+          <div className="section-header-row" style={{ marginBottom: '24px' }}>
             <div className="section-heading-wrap">
-              <h2>Top Medical Specialties</h2>
-              <p>Select a clinical specialty to immediately filter qualified doctors on this page</p>
+              <span className="section-eyebrow">✦ 40+ MEDICAL SPECIALTIES</span>
+              <h2 className="section-main-heading">Top Medical Specialties</h2>
+              <p className="section-subheading">Select a clinical specialty to immediately filter qualified doctors on this page</p>
             </div>
             {selectedSpecialtyFilter !== 'All' && (
               <button
@@ -726,7 +791,7 @@ export default function Landing() {
               return (
                 <div
                   key={sp.id}
-                  className={`specialty-card ${isSelected ? 'selected' : ''}`}
+                  className={`specialty-card scroll-seq-card ${isSelected ? 'selected' : ''}`}
                   onClick={() => {
                     setSelectedSpecialtyFilter(sp.name);
                     scrollToSection('doctors');
@@ -775,13 +840,14 @@ export default function Landing() {
         </section>
 
         {/* =========================================================================
-            SECTION 4: FEATURED DOCTORS SHOWCASE (IN-PAGE INSPECTION & BOOKING)
+            SECTION 4: FEATURED DOCTORS SHOWCASE (EXACT IMAGE 2 CANVA COMPLIANT)
            ========================================================================= */}
         <section id="doctors" style={{ marginBottom: '56px' }}>
-          <div className="section-header-row">
+          <div className="section-header-row" style={{ marginBottom: '24px' }}>
             <div className="section-heading-wrap">
-              <h2>Featured PMDC-Certified Medical Specialists</h2>
-              <p>
+              <span className="section-eyebrow">✦ PMDC-VERIFIED SPECIALISTS</span>
+              <h2 className="section-main-heading">Featured Medical Specialists</h2>
+              <p className="section-subheading">
                 Showing {filteredDoctors.length} verified specialists available for in-clinic visits and online consultations
               </p>
             </div>
@@ -792,13 +858,15 @@ export default function Landing() {
                 type="button"
                 onClick={() => setConsultationTypeFilter('all')}
                 style={{
-                  padding: '6px 14px',
+                  padding: '7px 16px',
                   borderRadius: 'var(--radius-pill)',
                   fontSize: '12.5px',
                   fontWeight: '700',
                   border: `1.5px solid ${consultationTypeFilter === 'all' ? 'var(--forest-800)' : 'var(--border-subtle)'}`,
                   backgroundColor: consultationTypeFilter === 'all' ? 'var(--forest-800)' : '#FFFFFF',
                   color: consultationTypeFilter === 'all' ? '#FFFFFF' : 'var(--text-main)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 All Consultations
@@ -808,13 +876,15 @@ export default function Landing() {
                 type="button"
                 onClick={() => setConsultationTypeFilter('clinic')}
                 style={{
-                  padding: '6px 14px',
+                  padding: '7px 16px',
                   borderRadius: 'var(--radius-pill)',
                   fontSize: '12.5px',
                   fontWeight: '700',
                   border: `1.5px solid ${consultationTypeFilter === 'clinic' ? 'var(--forest-800)' : 'var(--border-subtle)'}`,
                   backgroundColor: consultationTypeFilter === 'clinic' ? 'var(--forest-800)' : '#FFFFFF',
                   color: consultationTypeFilter === 'clinic' ? '#FFFFFF' : 'var(--text-main)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 🏥 In-Clinic Only
@@ -824,13 +894,15 @@ export default function Landing() {
                 type="button"
                 onClick={() => setConsultationTypeFilter('video')}
                 style={{
-                  padding: '6px 14px',
+                  padding: '7px 16px',
                   borderRadius: 'var(--radius-pill)',
                   fontSize: '12.5px',
                   fontWeight: '700',
                   border: `1.5px solid ${consultationTypeFilter === 'video' ? 'var(--forest-800)' : 'var(--border-subtle)'}`,
                   backgroundColor: consultationTypeFilter === 'video' ? 'var(--forest-800)' : '#FFFFFF',
                   color: consultationTypeFilter === 'video' ? '#FFFFFF' : 'var(--text-main)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 🎥 Video Consult Available
@@ -838,143 +910,81 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Doctors Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-            {filteredDoctors.map((doc) => (
+          {/* Doctors Grid matching Image 2 Layout (2-Column Grid) */}
+          <div className="img2-cards-grid">
+            {filteredDoctors.map((doc, idx) => (
               <div
                 key={doc.id}
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '20px',
-                  border: '1px solid var(--border-subtle)',
-                  padding: '24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  boxShadow: 'var(--shadow-sm)',
-                  transition: 'all 0.2s',
-                  position: 'relative',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--forest-700)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                  e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                }}
+                className="img2-doc-card scroll-seq-card"
+                data-card-seq={idx}
               >
-                {/* Top Row: Avatar & Verified Badge */}
-                <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                {/* Left Avatar Column */}
+                <div className="img2-avatar-wrap">
+                  {doc.photoUrl ? (
+                    <img
+                      src={doc.photoUrl}
+                      alt={doc.name}
+                      className="img2-avatar-img"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const fallback = e.currentTarget.parentElement.querySelector('.img2-avatar-fallback');
+                        if (fallback) fallback.style.display = 'grid';
+                      }}
+                    />
+                  ) : null}
                   <div
+                    className="img2-avatar-fallback"
                     style={{
-                      width: '56px',
-                      height: '56px',
-                      borderRadius: '16px',
+                      display: doc.photoUrl ? 'none' : 'grid',
                       backgroundColor: doc.photoColor || 'var(--forest-800)',
-                      color: '#FFFFFF',
-                      display: 'grid',
-                      placeItems: 'center',
-                      fontSize: '18px',
-                      fontWeight: '800',
-                      flexShrink: 0,
                     }}
                   >
                     {doc.initials || doc.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                   </div>
-
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                      <span
-                        style={{
-                          fontSize: '10.5px',
-                          fontWeight: '800',
-                          color: '#15803D',
-                          backgroundColor: '#DCFCE7',
-                          padding: '2px 8px',
-                          borderRadius: 'var(--radius-pill)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        <ShieldCheck size={12} />
-                        <span>PMDC: {doc.pmdcNumber}</span>
-                      </span>
-                      {doc.onlineNow && (
-                        <span style={{ fontSize: '10px', color: '#16A34A', fontWeight: '700' }}>● Online</span>
-                      )}
-                    </div>
-
-                    <h3 style={{ fontSize: '16px', fontWeight: '800', margin: '2px 0', color: 'var(--text-main)' }}>
-                      {doc.name}
-                    </h3>
-                    <div style={{ fontSize: '12.5px', color: 'var(--forest-700)', fontWeight: '700' }}>
-                      {doc.specialty}
-                    </div>
-                  </div>
                 </div>
 
-                {/* Qualifications & Experience */}
-                <div style={{ margin: '14px 0', padding: '12px', backgroundColor: 'var(--canvas-bg)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '11.5px', color: 'var(--text-body)', fontWeight: '600', marginBottom: '4px' }}>
-                    🎓 {doc.qualifications}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                    <span>⏳ {doc.experience} Experience</span>
-                    <span style={{ color: '#B45309', fontWeight: '700' }}>★ {doc.rating || 4.9} ({doc.reviewsCount || 120}+ reviews)</span>
-                  </div>
-                </div>
-
-                {/* Main Hospital Practice */}
-                <div style={{ fontSize: '12.5px', color: 'var(--text-body)', marginBottom: '16px', flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                    <MapPin size={15} color="var(--forest-700)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <div>
-                      <b>{doc.practices?.[0]?.hospital || 'Executive OPD Clinic'}</b>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{doc.practices?.[0]?.address || `${doc.city}, Pakistan`}</div>
+                {/* Right Content Column */}
+                <div className="img2-content-wrap">
+                  {/* Top Row: Doctor Name & Star Rating Badge */}
+                  <div className="img2-top-row">
+                    <h3 className="img2-doc-name">{doc.name}</h3>
+                    <div className="img2-rating-pill">
+                      <span style={{ color: '#F59E0B' }}>★</span>
+                      <span>{doc.rating || '4.9'}</span>
                     </div>
                   </div>
-                </div>
 
-                {/* Consultation Fees */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: '1px solid var(--border-subtle)', marginBottom: '14px' }}>
-                  <div>
-                    <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', display: 'block' }}>Clinic Fee</span>
-                    <b style={{ fontSize: '14px', color: 'var(--forest-800)' }}>Rs. {doc.inClinicFee?.toLocaleString() || '2,000'}</b>
+                  {/* Specialty and Clinic */}
+                  <div className="img2-specialty-clinic">
+                    {doc.specialty} · {doc.clinicName || doc.practices?.[0]?.hospital || 'Central Clinic'}
                   </div>
-                  {doc.videoFee && (
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', display: 'block' }}>Video Consult</span>
-                      <b style={{ fontSize: '14px', color: '#0369A1' }}>Rs. {doc.videoFee?.toLocaleString()}</b>
-                    </div>
-                  )}
-                </div>
 
-                {/* Action Buttons: 1. View Credentials on Landing Page, 2. Book with Auth Guard */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <button
-                    type="button"
-                    className="btn-white-capsule"
-                    style={{ padding: '9px 12px', fontSize: '12px', border: '1px solid var(--border-strong)' }}
-                    onClick={() => {
-                      setSelectedDoctorModal(doc);
-                      setDoctorModalTab('overview');
-                    }}
-                  >
-                    <span>View Credentials</span>
-                  </button>
+                  {/* Experience and Short Bio snippet */}
+                  <div className="img2-exp-summary">
+                    {doc.experience} experience · {doc.shortBio || doc.bio || 'Thoughtful primary care with a focus on prevention.'}
+                  </div>
 
-                  <button
-                    type="button"
-                    className="btn-lime-pill"
-                    style={{ padding: '9px 12px', fontSize: '12px' }}
-                    onClick={() => handleBookingClick(doc)}
-                  >
-                    <span>Book Visit</span>
-                    <ArrowRight size={13} />
-                  </button>
+                  {/* Action Buttons: View profile & Book visit */}
+                  <div className="img2-actions-row">
+                    <button
+                      type="button"
+                      className="img2-btn-view-profile"
+                      onClick={() => {
+                        setSelectedDoctorModal(doc);
+                        setDoctorModalTab('overview');
+                      }}
+                    >
+                      View profile
+                    </button>
+
+                    <button
+                      type="button"
+                      className="img2-btn-book-visit"
+                      onClick={() => handleBookingClick(doc)}
+                    >
+                      Book visit
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -985,10 +995,11 @@ export default function Landing() {
             SECTION 5: PARTNER TERTIARY HOSPITALS (INTERACTIVE FACILITY INSPECTION)
            ========================================================================= */}
         <section id="hospitals" style={{ marginBottom: '56px' }}>
-          <div className="section-header-row">
+          <div className="section-header-row" style={{ marginBottom: '24px' }}>
             <div className="section-heading-wrap">
-              <h2>Premier Partner Hospital Networks</h2>
-              <p>Top tertiary medical institutions and clinical complexes with MedConnect integration</p>
+              <span className="section-eyebrow">✦ ACCREDITED FACILITIES</span>
+              <h2 className="section-main-heading">Premier Partner Hospital Networks</h2>
+              <p className="section-subheading">Top tertiary medical institutions and clinical complexes with MedConnect integration</p>
             </div>
           </div>
 
@@ -996,6 +1007,7 @@ export default function Landing() {
             {branchesList.map((hosp) => (
               <div
                 key={hosp.id}
+                className="scroll-seq-card"
                 style={{
                   backgroundColor: '#FFFFFF',
                   borderRadius: '20px',
@@ -1108,11 +1120,11 @@ export default function Landing() {
               <span>OFFICIAL PMDC TELEHEALTH PLATFORM</span>
             </div>
 
-            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '34px', margin: '0 0 14px 0', lineHeight: '1.2' }}>
+            <h2 className="section-main-heading" style={{ color: '#FFFFFF', margin: '0 0 14px 0' }}>
               Instant Video Consultations with Top Doctors across Pakistan
             </h2>
 
-            <p style={{ fontSize: '15px', color: 'var(--text-white-muted)', margin: '0 0 28px 0', lineHeight: '1.6' }}>
+            <p className="section-subheading" style={{ color: 'var(--text-white-muted)', margin: '0 0 28px 0' }}>
               No matter where you are in Pakistan—from small towns to major metropolitan centers—consult senior professors and specialists via encrypted HD video.
             </p>
 
@@ -1168,10 +1180,11 @@ export default function Landing() {
             SECTION 7: HOW IT WORKS (TABBED INTERACTIVE WORKFLOW)
            ========================================================================= */}
         <section id="how-it-works" style={{ marginBottom: '56px' }}>
-          <div className="section-header-row">
+          <div className="section-header-row" style={{ marginBottom: '24px' }}>
             <div className="section-heading-wrap">
-              <h2>Clear, Transparent Healthcare Workflow</h2>
-              <p>See how MedConnect interconnects patients, verified clinicians, and hospital care</p>
+              <span className="section-eyebrow">✦ SIMPLE 3-STEP FLOW</span>
+              <h2 className="section-main-heading">Clear, Transparent Healthcare Workflow</h2>
+              <p className="section-subheading">See how MedConnect interconnects patients, verified clinicians, and hospital care</p>
             </div>
 
             {/* Role Workflow Switcher */}
@@ -1209,7 +1222,7 @@ export default function Landing() {
 
           {howItWorksTab === 'patient' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-              <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
+              <div className="scroll-seq-card" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '32px', fontFamily: 'var(--font-serif)', color: 'var(--forest-800)', fontWeight: '700', marginBottom: '12px' }}>
                   01
                 </div>
@@ -1219,7 +1232,7 @@ export default function Landing() {
                 </p>
               </div>
 
-              <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
+              <div className="scroll-seq-card" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '32px', fontFamily: 'var(--font-serif)', color: 'var(--forest-800)', fontWeight: '700', marginBottom: '12px' }}>
                   02
                 </div>
@@ -1229,7 +1242,7 @@ export default function Landing() {
                 </p>
               </div>
 
-              <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
+              <div className="scroll-seq-card" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '32px', fontFamily: 'var(--font-serif)', color: 'var(--forest-800)', fontWeight: '700', marginBottom: '12px' }}>
                   03
                 </div>
@@ -1241,7 +1254,7 @@ export default function Landing() {
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-              <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
+              <div className="scroll-seq-card" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '32px', fontFamily: 'var(--font-serif)', color: 'var(--forest-800)', fontWeight: '700', marginBottom: '12px' }}>
                   01
                 </div>
@@ -1251,7 +1264,7 @@ export default function Landing() {
                 </p>
               </div>
 
-              <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
+              <div className="scroll-seq-card" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '32px', fontFamily: 'var(--font-serif)', color: 'var(--forest-800)', fontWeight: '700', marginBottom: '12px' }}>
                   02
                 </div>
@@ -1261,7 +1274,7 @@ export default function Landing() {
                 </p>
               </div>
 
-              <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
+              <div className="scroll-seq-card" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '32px 24px', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '32px', fontFamily: 'var(--font-serif)', color: 'var(--forest-800)', fontWeight: '700', marginBottom: '12px' }}>
                   03
                 </div>
@@ -1278,15 +1291,16 @@ export default function Landing() {
             SECTION 8: PATIENT TESTIMONIALS & TRUST REVIEWS
            ========================================================================= */}
         <section style={{ marginBottom: '56px' }}>
-          <div className="section-header-row">
+          <div className="section-header-row" style={{ marginBottom: '24px' }}>
             <div className="section-heading-wrap">
-              <h2>Real Experiences from Patients across Pakistan</h2>
-              <p>Over 42,000 verified reviews from patients treated by our certified doctors</p>
+              <span className="section-eyebrow">✦ VERIFIED REVIEWS</span>
+              <h2 className="section-main-heading">Real Experiences from Patients across Pakistan</h2>
+              <p className="section-subheading">Over 42,000 verified reviews from patients treated by our certified doctors</p>
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '28px', border: '1px solid var(--border-subtle)' }}>
+            <div className="scroll-seq-card" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '28px', border: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', color: '#B45309', marginBottom: '10px' }}>
                 {'★★★★★'}
               </div>
@@ -1304,7 +1318,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '28px', border: '1px solid var(--border-subtle)' }}>
+            <div className="scroll-seq-card" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '28px', border: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', color: '#B45309', marginBottom: '10px' }}>
                 {'★★★★★'}
               </div>
@@ -1322,7 +1336,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '28px', border: '1px solid var(--border-subtle)' }}>
+            <div className="scroll-seq-card" style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '28px', border: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', color: '#B45309', marginBottom: '10px' }}>
                 {'★★★★★'}
               </div>
@@ -1346,10 +1360,11 @@ export default function Landing() {
             SECTION 9: FREQUENTLY ASKED QUESTIONS (INTERACTIVE ACCORDION)
            ========================================================================= */}
         <section id="faq" style={{ marginBottom: '56px' }}>
-          <div className="section-header-row">
+          <div className="section-header-row" style={{ marginBottom: '24px' }}>
             <div className="section-heading-wrap">
-              <h2>Frequently Asked Questions</h2>
-              <p>Everything you need to know about PMDC validation, bookings, and digital healthcare</p>
+              <span className="section-eyebrow">✦ HELP & SUPPORT</span>
+              <h2 className="section-main-heading">Frequently Asked Questions (FAQ)</h2>
+              <p className="section-subheading">Everything you need to know about PMDC validation, bookings, and digital healthcare</p>
             </div>
           </div>
 
@@ -1359,6 +1374,7 @@ export default function Landing() {
               return (
                 <div
                   key={idx}
+                  className="scroll-seq-card"
                   style={{
                     backgroundColor: '#FFFFFF',
                     borderRadius: '16px',
