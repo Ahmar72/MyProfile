@@ -19,6 +19,7 @@ import {
 import {
   AdminDashboard,
   AdminDoctorsPage,
+  AdminPatientsPage,
   AdminBranchesPage,
   AdminQueuePage,
   AdminReportsPage,
@@ -28,7 +29,7 @@ export default function App() {
   return (
     <DemoProvider>
       <Routes>
-        {/* Exact Canva Interactive Demo Entry */}
+        {/* Landing Page (Entry via Signup/Signin & Search) */}
         <Route path="/" element={<Landing />} />
 
         {/* Auth Previews matching Canva Sidebar */}
@@ -59,6 +60,7 @@ export default function App() {
         {/* Admin Role (Interconnected Operations & Facilities Console) */}
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/doctors" element={<AdminDoctorsPage />} />
+        <Route path="/admin/patients" element={<AdminPatientsPage />} />
         <Route path="/admin/branches" element={<AdminBranchesPage />} />
         <Route path="/admin/queue" element={<AdminQueuePage />} />
         <Route path="/admin/booking" element={<AdminQueuePage />} />

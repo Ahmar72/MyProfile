@@ -172,8 +172,21 @@ export default function PatientDashboard() {
 
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                        <span className="badge-pmdc" style={{ fontSize: '10px' }}>
-                          {apt.status}
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            padding: '2px 8px',
+                            borderRadius: 'var(--radius-pill)',
+                            backgroundColor: apt.status.includes('Pending')
+                              ? 'var(--badge-amber-bg)'
+                              : 'var(--badge-green-bg)',
+                            color: apt.status.includes('Pending')
+                              ? 'var(--badge-amber-text)'
+                              : 'var(--badge-green-text)',
+                          }}
+                        >
+                          {apt.status.includes('Pending') ? '⏳ Awaiting Doctor Confirmation' : `✓ ${apt.status}`}
                         </span>
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           ID: #{apt.id}
